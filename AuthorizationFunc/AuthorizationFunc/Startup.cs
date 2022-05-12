@@ -46,7 +46,7 @@ namespace AuthorizationFunc
             services.AddLogging();
             services.AddScoped<IAuthorizationFuncClient, AuthorizationFuncClient>();
             services.AddScoped<IRedisClient, RedisClient>();
-            services.AddScoped<IFormDataParser, FormDataParser>();
+            services.AddScoped<IFormDataParser, FormDataParser>(); //test
 
             return services;
         }
