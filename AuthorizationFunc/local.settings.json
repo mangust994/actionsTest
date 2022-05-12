@@ -1,0 +1,14 @@
+{
+    "IsEncrypted": false,
+  "Values": {
+    "AuthorizationFunc:AzureWebJobsStorage": "",
+    "AuthorizationFunc:FUNCTIONS_WORKER_RUNTIME": "dotnet",
+    "AuthorizationFunc:Issuer": "AuthorizationFunc",
+    "AuthorizationFunc:Audience": "HHIHClient",
+    "AuthorizationFunc:Key": "123412341234123412341234",
+    "AuthorizationFunc:Lifetime": 1000000,
+    "AuthorizationFunc:URI_HIHH_API": "http://imagesservice.azure.hih.nixdev.co/DirectPostV2/Authenticate",
+    "AuthorizationFunc:RedisConnectionString": "authCache.redis.cache.windows.net:6380,password=uC9xaNwdpOvYfD38ICG0nQzmjxfxqAb7gAzCaNIem2U=,ssl=True,abortConnect=False"
+
+  }
+}
