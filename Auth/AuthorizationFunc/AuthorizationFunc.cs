@@ -44,7 +44,7 @@ namespace AuthorizationFunc
         }
 
         [FunctionName("AuthorizationFunc")]
-        public async Task<IActionResult> Run(
+        public IActionResult Run(
             [HttpTrigger(AuthorizationLevel.Function, "post", Route = null)] HttpRequest req,
             ILogger log)
         {
