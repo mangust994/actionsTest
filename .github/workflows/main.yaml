@@ -1,4 +1,4 @@
-name: DeployMainFunc
+name: DeployMainFunc1
 
 on:
   push:
