@@ -3,7 +3,7 @@ name: DeployMainFunc1
 on:
   push:
     branches:
-      - develop
+      - master
   workflow_dispatch:
 
 jobs:
