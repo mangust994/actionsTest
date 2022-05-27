@@ -1,4 +1,4 @@
-name: DeployAuthFunc
+name: DeployAuthFunc1
 
 on:
   push:
