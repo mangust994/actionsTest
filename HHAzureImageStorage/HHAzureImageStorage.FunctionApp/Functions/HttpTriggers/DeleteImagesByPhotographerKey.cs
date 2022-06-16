@@ -8,26 +8,24 @@ using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
 using Microsoft.Extensions.Logging;
 using System.Threading.Tasks;
 
-namespace HHAzureImageStorage.FunctionApp
+namespace HHAzureImageStorage.FunctionApp.Functions.HttpTriggers
 {
     public class DeleteImagesByPhotographerKey
     {
         private readonly ILogger _logger;
-        private readonly IImageService _uploadImageService;
+        private readonly IQueueMessageService _queueMessageService;
         private readonly IHttpHelper _httpHelper;
 
-        public DeleteImagesByPhotographerKey(ILoggerFactory loggerFactory,
-            IHttpHelper httpHelper,
-            IImageService uploadImageService)
+        public DeleteImagesByPhotographerKey(ILoggerFactory loggerFactory, IHttpHelper httpHelper, IQueueMessageService queueMessageService)
         {
             _logger = loggerFactory.CreateLogger<DeleteImagesByPhotographerKey>();
             _httpHelper = httpHelper;
-            _uploadImageService = uploadImageService;
+            _queueMessageService = queueMessageService;
         }
 
         [Function("DeleteImagesByPhotographerKey")]
         [OpenApiOperation(operationId: "DeleteImagesByPhotographerKey", tags: new[] { "image" })]
-        public async Task<HttpResponseData> Run([HttpTrigger(AuthorizationLevel.Function,"post")] HttpRequestData req)
+        public async Task<HttpResponseData> Run([HttpTrigger(AuthorizationLevel.Function, "post")] HttpRequestData req)
         {
             _logger.LogInformation("DeleteImagesByPhotographerKey: Started");
 
@@ -48,11 +46,11 @@ namespace HHAzureImageStorage.FunctionApp
             {
                 if (int.TryParse(photographerKeyValue, out int photographerKey))
                 {
-                    await _uploadImageService.RemoveImagesByStudioKeyAsync(photographerKey);
+                    await _queueMessageService.SendMessageDeleteImagesByPhotographerAsync(photographerKey);
 
                     _logger.LogInformation("DeleteImagesByPhotographerKey: Finished");
 
-                    responseModel = new BaseResponseModel($"All images for studio with {photographerKey} key were deleted");
+                    responseModel = new BaseResponseModel($"All images for studio with {photographerKey} key were queued for deletion");
 
                     return await _httpHelper.CreateFailedHttpResponseAsync(req, responseModel);
                 }

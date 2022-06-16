@@ -39,8 +39,11 @@ namespace HHAzureImageStorage.BL.Models.DTOs
         public ImageVariant ImageVariant { get; set; }
 
         public ImageUploader SourceApplication { get; set; }
+
         public int WidthPixels { get; private set; }
+
         public int HeightPixels { get; private set; }
+
         public int SizeInBytes { get; private set; }
 
         public static AddImageDto CreateInstance(Guid imageId, Stream content, string contentType, string originalImageName, string fileName, ImageVariant imageVariant, ImageUploader sourceApp)
@@ -67,39 +70,27 @@ namespace HHAzureImageStorage.BL.Models.DTOs
 
             addImageDto.HasTransparentAlphaLayer = magickImage.HasAlpha && !magickImage.IsOpaque;
 
-            const int shortestPixelSize = 6000;
+            int.TryParse(Environment.GetEnvironmentVariable("SHORTEST_PIXEL_SIZE"), out int shortestPixelSize);
 
             if (Math.Min(magickImage.Width, magickImage.Height) > shortestPixelSize)
             {
-                // TODO Resize the image
+                // Resize the image
+                double scale = Math.Max(shortestPixelSize / (double)magickImage.Width, shortestPixelSize / (double)magickImage.Height);
 
-                double scale = Math.Min(shortestPixelSize / (double)magickImage.Width, shortestPixelSize / (double)magickImage.Height);
                 int w = (int)(magickImage.Width * scale);
                 int h = (int)(magickImage.Height * scale);
 
                 magickImage.Resize(w, h);
 
+                var buffer = magickImage.ToByteArray();
+
                 addImageDto.WidthPixels = magickImage.Width;
                 addImageDto.HeightPixels = magickImage.Height;
-                addImageDto.SizeInBytes = magickImage.ToByteArray().Length;
-            }
+                addImageDto.SizeInBytes = buffer.Length;
+                addImageDto.Content = new MemoryStream(buffer);
+            }           
 
             return addImageDto;
-        }
-
-        public static AddImageDto CreateInstance(string originalFileName)
-        {
-            //Build the GUID file name for storage
-            var guid = Guid.NewGuid();
-            var ext = Path.GetExtension(originalFileName);
-            var guidFileName = String.Format("{0}{1}", guid, ext);
-
-            return new AddImageDto()
-            {
-                ImageId = guid,
-                Name = guidFileName,
-                OriginalImageName = originalFileName
-            };
         }
 
         public Image CreateImageEntity() => new()
@@ -114,7 +105,10 @@ namespace HHAzureImageStorage.BL.Models.DTOs
             WatermarkMethod = WatermarkMethod,
             hhihPhotographerKey = HHIHPhotographerKey,
             hhihEventKey = HHIHEventKey,
-            BackupImageGUID = BackupImageGUID
+            BackupImageGUID = BackupImageGUID,
+            WidthPixels = WidthPixels,
+            HeightPixels = HeightPixels,
+            SizeInBytes = SizeInBytes
         };        
 
         public ImageStorage CreateImageStorageEntity(string storageAccountName, string bloabContainerName) => new()
@@ -126,7 +120,10 @@ namespace HHAzureImageStorage.BL.Models.DTOs
             StorageAccount = storageAccountName,
             Container = bloabContainerName,
             CreatedDate = DateTime.UtcNow,
-            BlobName = Name
+            BlobName = Name,
+            WidthPixels = WidthPixels,
+            HeightPixels = HeightPixels,
+            SizeInBytes = SizeInBytes
         };
 
         public ImageApplicationRetention CreateImageApplicationRetentionEntity() => new()
@@ -135,18 +132,6 @@ namespace HHAzureImageStorage.BL.Models.DTOs
             sourceApplicationName = this.SourceApplication.ToString(),
             sourceApplicationReferenceId = null,
             expirationDate = null,
-        };
-
-        public ImageUpload CreateImageUploadEntity() => new()
-        {
-            id = ImageId,
-            ColorCorrectLevel = ColorCorrectLevel,
-            OriginalImageName = OriginalImageName,
-            AutoThumbnails = AutoThumbnails,
-            WatermarkImageId = WatermarkImageId,
-            WatermarkMethod = WatermarkMethod,
-            hhihPhotographerKey = HHIHPhotographerKey,
-            hhihEventKey = HHIHEventKey
         };
     }
 }

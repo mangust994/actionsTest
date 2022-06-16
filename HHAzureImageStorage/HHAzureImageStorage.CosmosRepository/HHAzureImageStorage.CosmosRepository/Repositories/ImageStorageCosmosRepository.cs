@@ -7,14 +7,20 @@ using System.Linq;
 using System.Threading.Tasks;
 using HHAzureImageStorage.Domain.Enums;
 using System.Collections.Generic;
+using Microsoft.Extensions.Logging;
 
 namespace HHAzureImageStorage.CosmosRepository.Repositories
 {
     public class ImageStorageCosmosRepository : IImageStorageRepository
     {
         private readonly IImageStorageCosmosContext _context;
+        private readonly ILogger _logger;
 
-        public ImageStorageCosmosRepository(IImageStorageCosmosContext context) => this._context = context;
+        public ImageStorageCosmosRepository(IImageStorageCosmosContext context, ILoggerFactory loggerFactory)
+        {
+            _context = context;
+            _logger = loggerFactory.CreateLogger<ImageStorageCosmosRepository>();
+        }
 
         public async Task<ImageStorage> AddAsync(ImageStorage imageEntity)
         {
@@ -39,6 +45,8 @@ namespace HHAzureImageStorage.CosmosRepository.Repositories
             }
             catch (CosmosException ex)
             {
+                _logger.LogError($"ImageStorageCosmosRepository|GetByImageIdAndImageVariant: Failed. Exception Message: {ex.Message} : Stack: {ex.StackTrace}");
+
                 return null;
             }
         }
@@ -76,6 +84,8 @@ namespace HHAzureImageStorage.CosmosRepository.Repositories
             }
             catch (CosmosException ex)
             {
+                _logger.LogError($"ImageStorageCosmosRepository|GetByImageId: Failed. Exception Message: {ex.Message} : Stack: {ex.StackTrace}");
+
                 return null;
             }
         }

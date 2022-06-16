@@ -1,10 +1,10 @@
-﻿using Azure.Storage.Queues;
-using HHAzureImageStorage.BL.Extensions;
+﻿using HHAzureImageStorage.BL.Extensions;
 using HHAzureImageStorage.BL.Models.DTOs;
 using HHAzureImageStorage.BL.Utilities;
 using HHAzureImageStorage.BlobStorageProcessor.Interfaces;
 using HHAzureImageStorage.BlobStorageProcessor.Settings;
 using HHAzureImageStorage.Core.Interfaces.Processors;
+using HHAzureImageStorage.Core.Models.Responses;
 using HHAzureImageStorage.DAL.Interfaces;
 using HHAzureImageStorage.Domain.Entities;
 using HHAzureImageStorage.Domain.Enums;
@@ -33,8 +33,7 @@ namespace HHAzureImageStorage.BL.Services
         private readonly IImageStorageSizeRepositoty _imageStorageSizeRepository;
         private readonly IImageStorageAccessUrlRepository _imageStorageAccesUrlRepository;
         private readonly IImageUploadRepository _imageUploadRepository;
-
-        private readonly QueueClient _storageQueueClient;
+        private readonly IQueueMessageService _queueMessageService;
 
         public ImageService(ILoggerFactory loggerFactory,
             BlobStorageSettings blobStorageOptions,
@@ -47,7 +46,7 @@ namespace HHAzureImageStorage.BL.Services
                                 IImageStorageAccessUrlRepository imageStorageAccesUrlRepository,
                                 IImageUploadRepository imageUploadRepository,
                                 IStorageProcessor storageProcessor,
-                                QueueClient storageQueueClient)
+                                IQueueMessageService queueMessageService)
         {
             _logger = loggerFactory.CreateLogger<ImageService>();
             _blobStorageSettings = blobStorageOptions;
@@ -60,66 +59,54 @@ namespace HHAzureImageStorage.BL.Services
             _imageStorageSizeRepository = imageStorageSizeRepository;
             _imageStorageAccesUrlRepository = imageStorageAccesUrlRepository;
             _imageUploadRepository = imageUploadRepository;
-            _storageQueueClient = storageQueueClient;
+            _queueMessageService = queueMessageService;
         }
 
         public async Task UploadImageProcessAsync(AddImageDto addImageDto)
         {
+            _logger.LogInformation($"ImageService| Started UploadImageProcessAsync for {addImageDto.ImageId} ImageId");
+
             try
             {
                 await AddImageProcess(addImageDto);
-                await _storageProcessor.StorageFileUploadAsync(addImageDto.Content,
-                                                            addImageDto.ContentType,
-                                                            addImageDto.ImageVariant,
-                                                            addImageDto.Name,
-                                                            null);
+                await _storageProcessor.StorageFileUploadAsync(addImageDto.Content, addImageDto.ContentType,
+                                       addImageDto.ImageVariant, addImageDto.Name, null);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                _logger.LogError($"ImageService|UploadImageProcessAsync: Failed. Exception Message: {ex.Message} : Stack: {ex.StackTrace}");
+
                 await RemoveImageDataFromDbAsync(addImageDto.ImageId, addImageDto.ImageVariant);
 
                 throw;
             }
+
+            _logger.LogInformation($"ImageService| Finished UploadImageProcessAsync for {addImageDto.ImageId} ImageId");
         }
 
         public async Task RemoveUploadedImageAsync(Guid imageId, string name, ImageVariant imageVariant)
         {
+            _logger.LogInformation($"ImageService| Started RemoveUploadedImageAsync for {name} image");
+
             try
             {
                 await RemoveImageDataFromDbAsync(imageId, imageVariant);
                 await RemoveImageAsync(name, imageVariant);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                
+                _logger.LogError($"ImageService|RemoveUploadedImageAsync: Failed. Exception Message: {ex.Message} : Stack: {ex.StackTrace}");
 
                 throw;
             }
+
+            _logger.LogInformation($"ImageService| Finished RemoveUploadedImageAsync for {name} image");
         }
-
-        public async Task RemoveUploadedImageAsync(Guid imageId)
-        {
-            try
-            {
-                Image image = await _imageRepository.GetByIdAsnc(imageId);
-
-                if (image == null)
-                {
-                    throw new NullReferenceException();
-                }
-
-                await RemoveMainImageAsync(imageId);
-            }
-            catch (Exception)
-            {
-
-
-                throw;
-            }
-        }        
 
         public async Task RemoveImageThumbnailsAsync(Guid imageId)
         {
+            _logger.LogInformation($"ImageService| Started RemoveImageThumbnailsAsync for {imageId} imageId");
+
             try
             {
                 List<ImageStorage> images = _imageStorageRepository.GetByImageId(imageId);
@@ -128,18 +115,22 @@ namespace HHAzureImageStorage.BL.Services
                 {
                     await RemoveImageAsync(imageStorage.BlobName, imageStorage.imageVariantId);
                     await RemoveThumbnailImageDataFromDbAsync(imageStorage.imageId, imageStorage.imageVariantId);
-                }                
+                }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-
+                _logger.LogError($"ImageService|RemoveImageThumbnailsAsync: Failed. Exception Message: {ex.Message} : Stack: {ex.StackTrace}");
 
                 throw;
             }
+
+            _logger.LogInformation($"ImageService| Finished RemoveImageThumbnailsAsync for {imageId} imageId");
         }
 
         public async Task RemoveServiceImageAsync(Guid imageId)
         {
+            _logger.LogInformation($"ImageService| Started RemoveServiceImageAsync for {imageId} imageId");
+
             try
             {
                 Image image = await _imageRepository.GetByIdAsnc(imageId);
@@ -153,58 +144,70 @@ namespace HHAzureImageStorage.BL.Services
 
                 await RemoveImageAsync(imageId, imageVariant);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-
+                _logger.LogError($"ImageService|RemoveServiceImageAsync: Failed. Exception Message: {ex.Message} : Stack: {ex.StackTrace}");
 
                 throw;
             }
+
+            _logger.LogInformation($"ImageService| Finished RemoveServiceImageAsync for {imageId} imageId");
         }
 
         public async Task RemoveImagesByEventKeyAsync(int eventKey)
         {
+            _logger.LogInformation($"ImageService| Started RemoveImagesByEventKeyAsync for {eventKey} eventKey");
+
             try
             {
                 List<Image> images = _imageRepository.GetByEventKey(eventKey);
 
-                if (images == null)
+                if (images == null || images.Count == 0)
                 {
-                    throw new NullReferenceException();
+                    _logger.LogInformation($"ImageService|RemoveImagesByEventKeyAsync: There are no images for event with {eventKey} eventKey");
                 }
 
                 await RemoveImagesAsync(images);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-
+                _logger.LogError($"ImageService|RemoveImagesByEventKeyAsync: Failed. Exception Message: {ex.Message} : Stack: {ex.StackTrace}");
 
                 throw;
             }
+
+            _logger.LogInformation($"ImageService| Finished RemoveImagesByEventKeyAsync for {eventKey} eventKey");
         }
 
         public async Task RemoveImagesByStudioKeyAsync(int studioKey)
         {
+            _logger.LogInformation($"ImageService| Started RemoveImagesByStudioKeyAsync for {studioKey} studioKey");
+
             try
             {
                 List<Image> images = _imageRepository.GetByStudioKey(studioKey);
 
-                if (images == null)
+                if (images == null || images.Count == 0)
                 {
-                    throw new NullReferenceException();
+                    _logger.LogInformation($"ImageService|RemoveImagesByStudioKeyAsync: There are no images for studio with {studioKey} studioKey");
                 }
 
                 await RemoveImagesAsync(images);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-
+                _logger.LogError($"ImageService|RemoveImagesByStudioKeyAsync: Failed. Exception Message: {ex.Message} : Stack: {ex.StackTrace}");
 
                 throw;
             }
+
+            _logger.LogInformation($"ImageService| Finished RemoveImagesByStudioKeyAsync for {studioKey} studioKey");
         }
 
         public async Task UpdateProcessedImagesAsync(AddImageDto addImageDto, AddImageInfoResponseModel hhihAddImageResponse)
         {
+            _logger.LogInformation($"ImageService| Started UpdateProcessedImagesAsync for {addImageDto.ImageId} imageId");
+
             try
             {
                 var image = await _imageRepository.GetByIdAsnc(addImageDto.ImageId);
@@ -224,17 +227,23 @@ namespace HHAzureImageStorage.BL.Services
                 await _imageStorageRepository.UpdateAsync(imageStorage);
                 await _imageApplicationRetentionRepository.UpdateAsync(imageApplicationRetention);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                _logger.LogError($"ImageService|UpdateProcessedImagesAsync: Failed. Exception Message: {ex.Message} : Stack: {ex.StackTrace}");
+
                 await RemoveImageDataFromDbAsync(addImageDto.ImageId, addImageDto.ImageVariant);
                 await RemoveImageAsync(addImageDto.Name, addImageDto.ImageVariant);
 
                 throw;
             }
+
+            _logger.LogInformation($"ImageService| Finished UpdateProcessedImagesAsync for {addImageDto.ImageId} imageId");
         }
 
         public async Task UploadWatermarkImageProcess(AddImageDto addImageDto)
         {
+            _logger.LogInformation($"ImageService| Started UploadWatermarkImageProcess for {addImageDto.ImageId} imageId");
+
             try
             {
                 await AddImageProcess(addImageDto);
@@ -243,18 +252,23 @@ namespace HHAzureImageStorage.BL.Services
                                                             addImageDto.ImageVariant,
                                                             addImageDto.Name,
                                                             null);
-                await SetImageReadyStatus(addImageDto.ImageId, addImageDto.ImageVariant);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                _logger.LogError($"ImageService|UploadWatermarkImageProcess: Failed. Exception Message: {ex.Message} : Stack: {ex.StackTrace}");
+
                 await RemoveImageDataFromDbAsync(addImageDto.ImageId, addImageDto.ImageVariant);
 
                 throw;
             }
-        }        
+
+            _logger.LogInformation($"ImageService| Finished UploadWatermarkImageProcess for {addImageDto.ImageId} imageId");
+        }
 
         public async Task ThumbnailImagesProcess(GenerateThumbnailImagesDto generateThumbnailImagesDto)
         {
+            _logger.LogInformation($"ImageService| Started ThumbnailImagesProcess for {generateThumbnailImagesDto.ImageId} imageId");
+
             WaterMarkType watermarkType = WaterMarkType.No;
 
             byte[] sourceArray = await _storageProcessor
@@ -265,6 +279,7 @@ namespace HHAzureImageStorage.BL.Services
             {
                 var imageVariant = ImageVariant.Service;
                 var watermarkImageId = new Guid(generateThumbnailImagesDto.WatermarkImageId);
+
                 var watermarkImageStore = _imageStorageRepository
                         .GetByImageIdAndImageVariant(watermarkImageId, imageVariant);
 
@@ -280,7 +295,7 @@ namespace HHAzureImageStorage.BL.Services
                     {
                         _logger.LogError("ThumbnailImagesProcess Error. Could not get watermark image", ex);
                         throw;
-                    } 
+                    }
                 }
             }
 
@@ -295,9 +310,10 @@ namespace HHAzureImageStorage.BL.Services
 
                 bool isWithWatermarkType = ImageVariantHelper.IsWithWatermark(imageVariant);
 
-                if (isWithWatermarkType && !generateThumbnailImagesDto.AutoThumbnails && watermarkArray == null)
+                if (isWithWatermarkType && (!generateThumbnailImagesDto.AutoThumbnails 
+                    || watermarkArray == null || watermarkType == WaterMarkType.No))
                 {
-                    _logger.LogInformation($"GenerateThumbnailImages: Skip watermark {imageVariant}. The AutoThumbnails is {generateThumbnailImagesDto.AutoThumbnails} for {imageVariant} image Variant");
+                    _logger.LogInformation($"GenerateThumbnailImages: Skip watermark {imageVariant}. The AutoThumbnails is {generateThumbnailImagesDto.AutoThumbnails} and WatermarkMethod {generateThumbnailImagesDto.WatermarkMethod} for {imageVariant} image Variant");
 
                     continue;
                 }
@@ -327,51 +343,63 @@ namespace HHAzureImageStorage.BL.Services
                         );
 
                     await _imageStorageRepository.AddAsync(imageStorageEntity);
-                }                              
-
-                using (var resizedStream = isWithWatermarkType && watermarkType != WaterMarkType.No ?
-                    _imageResizer.ResizeWithWatermark(sourceArray, watermarkArray, size.LongestPixelSize, watermarkType)
-                    : _imageResizer.Resize(sourceArray, size.LongestPixelSize))
-                {
-                    try
-                    {
-                        await _storageProcessor.StorageFileUploadAsync(resizedStream,
-                            generateThumbnailImagesDto.ContentType,
-                            imageVariant,
-                            fileName,
-                            null);
-
-                        imageStorageEntity.Status = ImageStatus.Ready;
-
-                        await _imageStorageRepository.UpdateAsync(imageStorageEntity);
-                    }
-                    catch (Exception)
-                    {
-                        _logger.LogError($"GenerateThumbnailImages: StorageFileUploadAsync {imageVariant} Failed. Image data was removed from DB");
-
-                        await _imageStorageRepository.RemoveAsync(imageStorageEntity.imageId, imageVariant);
-
-                        throw;
-                    }
                 }
+
+                ImageResizeResponse resizeResponse = isWithWatermarkType && watermarkType != WaterMarkType.No ?
+                    _imageResizer.ResizeWithWatermark(sourceArray, watermarkArray, size.LongestPixelSize, watermarkType)
+                    : _imageResizer.Resize(sourceArray, size.LongestPixelSize);
+
+                try
+                {
+                    await _storageProcessor.StorageFileUploadAsync(resizeResponse.ResizedStream,
+                        generateThumbnailImagesDto.ContentType,
+                        imageVariant,
+                        fileName,
+                        null);
+
+                    imageStorageEntity.Status = ImageStatus.Ready;
+                    imageStorageEntity.HeightPixels = resizeResponse.HeightPixels;
+                    imageStorageEntity.WidthPixels = resizeResponse.WidthPixels;
+                    imageStorageEntity.SizeInBytes = resizeResponse.SizeInBytes;
+
+                    await _imageStorageRepository.UpdateAsync(imageStorageEntity);
+                }
+                catch (Exception)
+                {
+                    _logger.LogError($"GenerateThumbnailImages: StorageFileUploadAsync {imageVariant} Failed. Image data was removed from DB");
+
+                    await _imageStorageRepository.RemoveAsync(imageStorageEntity.imageId, imageVariant);
+
+                    throw;
+                }
+
+                resizeResponse.ResizedStream.Dispose();
             }
+
+            _logger.LogInformation($"ImageService| Finished ThumbnailImagesProcess for {generateThumbnailImagesDto.ImageId} imageId");
         }
 
         public async Task RebuildThumbnailsWithWatermarkAsync(RebuildThumbnailsWithWatermarkDto modelDto)
         {
-            var images = _imageRepository.GetByStudioKey(modelDto.StudioKey);
+            _logger.LogInformation($"ImageService| Started RebuildThumbnailsWithWatermarkAsync for {modelDto.WatermarkImageId} imageId");
+
+            var images = _imageRepository.GetByStudioKeyAndEventKey(modelDto.StudioKey, modelDto.EventKey);
+
+            _logger.LogInformation($"RebuildThumbnailsWithWatermarkAsync: Where are {images.Count} images to rebuild for {modelDto.StudioKey} StudioKey and {modelDto.EventKey} eventKey");
 
             foreach (var image in images)
             {
-                if (image.WatermarkImageId == modelDto.ImageIdStringValue)
+                if (image.WatermarkImageId == modelDto.WatermarkImageId && image.WatermarkMethod == modelDto.WatermarkMethod)
                 {
-                    _logger.LogInformation($"RebuildThumbnailsWithWatermarkAsync: WatermarkImageId is not changed for imageId {image.id}");
+                    _logger.LogInformation($"RebuildThumbnailsWithWatermarkAsync: WatermarkImageId is not changed for imageId {image.id} and {modelDto.EventKey} eventKey");
 
                     continue;
                 }
 
+                _logger.LogInformation($"RebuildThumbnailsWithWatermarkAsync: Queue to change for imageId {image.id} , {modelDto.StudioKey} studioKey and {modelDto.EventKey} eventKey");
+
                 string filePrefix = FileHelper.GetFileNamePrefix(ImageVariant.Main);
-                string fileName = FileHelper.GetFileName(modelDto.ImageIdStringValue, filePrefix, image.OriginalImageName);
+                string fileName = FileHelper.GetFileName(image.id.ToString(), filePrefix, image.OriginalImageName);
 
                 GenerateThumbnailImagesDto generateThumbnailImagesDto = new GenerateThumbnailImagesDto
                 {
@@ -381,29 +409,32 @@ namespace HHAzureImageStorage.BL.Services
                     OriginalFileName = image.OriginalImageName,
                     AutoThumbnails = image.AutoThumbnails,
                     WatermarkMethod = modelDto.WatermarkMethod,
-                    WatermarkImageId = modelDto.ImageIdStringValue,
+                    WatermarkImageId = modelDto.WatermarkImageId,
                     IsRebuildThumbnails = true
                 };
 
-                image.WatermarkImageId = modelDto.ImageIdStringValue;
+                image.WatermarkImageId = modelDto.WatermarkImageId;
+                image.WatermarkMethod = modelDto.WatermarkMethod;
 
                 await _imageRepository.UpdateAsync(image);
 
-                var queueMessage = System.Text.Json.JsonSerializer.Serialize(generateThumbnailImagesDto);
-                // TODO Create Queue client to send message to different topic
-                await _storageQueueClient.SendMessageAsync(queueMessage);
+                await _queueMessageService.SendMessageProcessThumbnailImagesAsync(generateThumbnailImagesDto);
             }
+
+            _logger.LogInformation($"ImageService| Finished RebuildThumbnailsWithWatermarkAsync for {modelDto.WatermarkImageId} imageId");
         }
 
         public async Task RebuildWatermarkThumbnailsProcess(GenerateThumbnailImagesDto generateThumbnailImagesDto)
         {
+            _logger.LogInformation($"ImageService| Started RebuildWatermarkThumbnailsProcess for {generateThumbnailImagesDto.ImageId} imageId");
+
             WaterMarkType watermarkType = WaterMarkType.No;
 
             byte[] sourceArray = await _storageProcessor
                 .StorageFileBytesGetAsync(generateThumbnailImagesDto.FileName, ImageVariant.Main);
             byte[] watermarkArray = null;
 
-            if (generateThumbnailImagesDto.AutoThumbnails && generateThumbnailImagesDto.WatermarkImageId != null)
+            if (generateThumbnailImagesDto.AutoThumbnails && !string.IsNullOrEmpty(generateThumbnailImagesDto.WatermarkImageId))
             {
                 var imageVariant = ImageVariant.Service;
                 var watermarkImageId = new Guid(generateThumbnailImagesDto.WatermarkImageId);
@@ -424,7 +455,8 @@ namespace HHAzureImageStorage.BL.Services
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError("RebuildWatermarkThumbnailsProcess Error. Could not get watermark image", ex);
+                        _logger.LogError($"ImageService|RebuildWatermarkThumbnailsProcess: Failed. Exception Message: {ex.Message} : Stack: {ex.StackTrace}");
+
                         throw;
                     }
                 }
@@ -436,14 +468,18 @@ namespace HHAzureImageStorage.BL.Services
             {
                 ImageVariant imageVariant = size.imageVariantId;
 
+                _logger.LogInformation($"ImageService|RebuildWatermarkThumbnailsProcess: Processing the {imageVariant.ToString()} for {generateThumbnailImagesDto.ImageId} imageId");
+
                 ImageStorage imageStorageEntity = _imageStorageRepository
                     .GetByImageIdAndImageVariant(generateThumbnailImagesDto.ImageId, imageVariant);
 
                 if (imageStorageEntity == null)
                 {
-                    if (watermarkType == WaterMarkType.No)
+                    _logger.LogInformation("ImageService|RebuildWatermarkThumbnailsProcess: imageStorageEntity is null");
+
+                    if (DoNotNeedThumbGeneration(watermarkType, sourceArray, watermarkArray))
                     {
-                        _logger.LogError($"RebuildWatermarkThumbnailsProcess: ImageStorage is null & WaterMarkType is No.");
+                        _logger.LogWarning($"RebuildWatermarkThumbnailsProcess: ImageStorage is null & WaterMarkType is No.");
 
                         continue;
                     }
@@ -464,9 +500,11 @@ namespace HHAzureImageStorage.BL.Services
                 }
                 else
                 {
-                    if (watermarkType == WaterMarkType.No)
+                    _logger.LogInformation("ImageService|RebuildWatermarkThumbnailsProcess: imageStorageEntity is not null");
+
+                    if (DoNotNeedThumbGeneration(watermarkType, sourceArray, watermarkArray))
                     {
-                        _logger.LogError($"RebuildWatermarkThumbnailsProcess: WaterMarkType is No. Remove thumbnail for {size.imageVariantId.ToString()}");
+                        _logger.LogWarning($"RebuildWatermarkThumbnailsProcess: WaterMarkType is No. Remove thumbnail for {size.imageVariantId.ToString()}");
 
                         await _imageStorageRepository.RemoveAsync(imageStorageEntity.imageId, imageVariant);
                         await _imageStorageAccesUrlRepository.RemoveAsync(imageStorageEntity.imageId, imageVariant);
@@ -481,56 +519,80 @@ namespace HHAzureImageStorage.BL.Services
                     await _imageStorageRepository.UpdateAsync(imageStorageEntity);
                 }
 
-                using (var resizedStream = _imageResizer.ResizeWithWatermark(sourceArray, watermarkArray, size.LongestPixelSize, watermarkType))
+                _logger.LogInformation($"ImageService|RebuildWatermarkThumbnailsProcess: Started ResizeWithWatermark for {imageVariant.ToString()} and {generateThumbnailImagesDto.ImageId} imageId");
+
+                ImageResizeResponse resizeResponse = _imageResizer
+                    .ResizeWithWatermark(sourceArray, watermarkArray, size.LongestPixelSize, watermarkType);
+                
+                try
                 {
-                    try
-                    {
-                        await _storageProcessor.StorageFileUploadAsync(resizedStream,
-                            generateThumbnailImagesDto.ContentType,
-                            imageVariant,
-                            imageStorageEntity.BlobName,
-                            null);
+                    _logger.LogInformation($"ImageService|RebuildWatermarkThumbnailsProcess: Started Upload to storage of {imageStorageEntity.BlobName}");
 
-                        imageStorageEntity.Status = ImageStatus.Ready;
+                    await _storageProcessor.StorageFileUploadAsync(resizeResponse.ResizedStream,
+                        generateThumbnailImagesDto.ContentType,
+                        imageVariant,
+                        imageStorageEntity.BlobName,
+                        null);
 
-                        var image = await _imageRepository.GetByIdAsnc(generateThumbnailImagesDto.ImageId);
-                        image.WatermarkMethod = generateThumbnailImagesDto.WatermarkMethod;
-                        image.WatermarkImageId = generateThumbnailImagesDto.WatermarkImageId;
+                    imageStorageEntity.Status = ImageStatus.Ready;
+                    imageStorageEntity.HeightPixels = resizeResponse.HeightPixels;
+                    imageStorageEntity.WidthPixels = resizeResponse.WidthPixels;
+                    imageStorageEntity.SizeInBytes = resizeResponse.SizeInBytes;
 
-                        await _imageRepository.UpdateAsync(image);
-                        await _imageStorageRepository.UpdateAsync(imageStorageEntity);
-                    }
-                    catch (Exception)
-                    {
-                        _logger.LogError($"RebuildWatermarkThumbnailsProcess: StorageFileUploadAsync {imageVariant} Failed.");
+                    var image = await _imageRepository.GetByIdAsnc(generateThumbnailImagesDto.ImageId);
+                    image.WatermarkMethod = generateThumbnailImagesDto.WatermarkMethod;
+                    image.WatermarkImageId = generateThumbnailImagesDto.WatermarkImageId;
 
-                        // TODO What needs to do?
-                        //await _imageStorageRepository.RemoveAsync(imageStorageEntity.imageId, imageVariant);
+                    _logger.LogInformation($"ImageService|RebuildWatermarkThumbnailsProcess: Started Updating db of {imageStorageEntity.BlobName}");
 
-                        throw;
-                    }
+                    await _imageRepository.UpdateAsync(image);
+                    await _imageStorageRepository.UpdateAsync(imageStorageEntity);
+
+                    _logger.LogInformation($"ImageService|RebuildWatermarkThumbnailsProcess: Started removing imageStorageAccesUrl of {imageStorageEntity.BlobName}");
+
+                    await _imageStorageAccesUrlRepository.RemoveAsync(generateThumbnailImagesDto.ImageId, imageVariant);
                 }
+                catch (Exception ex)
+                {
+                    _logger.LogError($"RebuildWatermarkThumbnailsProcess: StorageFileUploadAsync {imageVariant} Failed.");
+                    _logger.LogError($"ImageService|RebuildWatermarkThumbnailsProcess: Failed. Exception Message: {ex.Message} : Stack: {ex.StackTrace}");
+
+                    // TODO What needs to do?
+                    //await _imageStorageRepository.RemoveAsync(imageStorageEntity.imageId, imageVariant);
+
+                    throw;
+                }
+
+                resizeResponse.ResizedStream.Dispose();
             }
-        }
+
+            _logger.LogInformation($"ImageService| Finished RebuildWatermarkThumbnailsProcess");
+        }        
 
         public string GetCreateAccessUrl(string bloabName)
         {
-            var expireDateTime = DateTime.Now.AddDays(_blobStorageSettings.UploadsContainerUrlExpireMinutes);            
+            var expireDateTime = DateTime.Now.AddDays(_blobStorageSettings.UploadsContainerUrlExpireMinutes);
 
             return _storageProcessor.UploadFileGetCreateAccessUrl(bloabName, expireDateTime);
         }
 
         public async Task<string> GetAccesUrl(Guid imageIdGuid, ImageVariant imageVariant, int expireInDays)
         {
+            _logger.LogInformation($"ImageService| Starteded GetAccesUrl");
+
             bool shouldUseDefaultDays = 0 == expireInDays;
 
             if (!shouldUseDefaultDays)
             {
+                _logger.LogInformation($"ImageService|GetAccesUrl: Use specific exp day");
+
                 ImageStorage imageStorage = _imageStorageRepository
                     .GetByImageIdAndImageVariant(imageIdGuid, imageVariant);
 
                 if (imageStorage == null || imageStorage.Status != ImageStatus.Ready)
                 {
+                    _logger.LogInformation($"ImageService|GetAccesUrl: There is no image for {imageVariant.ToString()}");
+
                     return string.Empty;
                 }
 
@@ -547,6 +609,8 @@ namespace HHAzureImageStorage.BL.Services
 
             if (imageStorageAccesUrl == null)
             {
+                _logger.LogInformation($"ImageService|GetAccesUrl: There is no imageStorageAccesUrl in db for {imageVariant.ToString()}");
+
                 imageStorageAccesUrl = new ImageStorageAccessUrl()
                 {
                     id = Guid.NewGuid(),
@@ -563,54 +627,74 @@ namespace HHAzureImageStorage.BL.Services
 
             if (imageStorageAccesUrl.SasUrlExpireDatetime < sasUrlExpireDatetimeDelta)
             {
+                _logger.LogInformation($"ImageService|GetAccesUrl: SasUrlExpireDatetime < sasUrlExpireDatetimeDelta");
+
                 ImageStorage imageStorage = _imageStorageRepository
                     .GetByImageIdAndImageVariant(imageIdGuid, imageVariant);
 
                 if (imageStorage == null || imageStorage.Status != ImageStatus.Ready)
                 {
-                    // If it is watermark type try get
-                    bool isWithWatermarkType = ImageVariantHelper.IsWithWatermark(imageVariant);
+                    _logger.LogInformation($"ImageService|GetAccesUrl: There is no imageStorage in db for {imageVariant.ToString()}");
 
-                    if (!isWithWatermarkType)
-                    {
-                        return string.Empty;
-                    }
+                    return string.Empty;
 
-                    imageVariant = ImageVariantHelper.GetImageVariantOppositeWatermarkVariant(imageVariant);
-                    imageStorage = _imageStorageRepository.GetByImageIdAndImageVariant(imageIdGuid, imageVariant);
+                    //// If it is watermark type try get
+                    //bool isWithWatermarkType = ImageVariantHelper.IsWithWatermark(imageVariant);
 
-                    if (imageStorage == null || imageStorage.Status != ImageStatus.Ready)
-                    {
-                        return string.Empty;
-                    }
+                    //if (!isWithWatermarkType)
+                    //{
+                    //    return string.Empty;
+                    //}
+
+                    //imageVariant = ImageVariantHelper.GetImageVariantOppositeWatermarkVariant(imageVariant);
+                    //imageStorage = _imageStorageRepository.GetByImageIdAndImageVariant(imageIdGuid, imageVariant);
+
+                    //if (imageStorage == null || imageStorage.Status != ImageStatus.Ready)
+                    //{
+                    //    return string.Empty;
+                    //}
                 }
 
                 DateTimeOffset expireDateTimeOffset = DateTimeOffset.Now
                         .AddDays(_blobStorageSettings.SasUrlExpireDateTimeDays);
 
+                _logger.LogInformation($"ImageService|GetAccesUrl: ReadAccessUrl Started: expireDateTimeOffset - {expireDateTimeOffset}");
+
                 string sasUrl = await ReadAccessUrl(expireDateTimeOffset, imageStorage.BlobName, imageVariant);
+
+                _logger.LogInformation($"ImageService|GetAccesUrl: ReadAccessUrl Finished. sasUrl - {sasUrl}");
 
                 imageStorageAccesUrl.SaSUrl = sasUrl;
                 imageStorageAccesUrl.SasUrlExpireDatetime = expireDateTimeOffset.DateTime;
 
                 if (wasCreatedNewItem)
                 {
+                    _logger.LogInformation($"ImageService|GetAccesUrl: imageStorageAccesUrlRepository.AddAsync");
+
                     await _imageStorageAccesUrlRepository.AddAsync(imageStorageAccesUrl);
                 }
                 else
                 {
+                    _logger.LogInformation($"ImageService|GetAccesUrl: imageStorageAccesUrlRepository.UpdateAsync");
+
                     await _imageStorageAccesUrlRepository.UpdateAsync(imageStorageAccesUrl);
                 }
             }
+
+            _logger.LogInformation($"ImageService|GetAccesUrl: Finished");
 
             return imageStorageAccesUrl.SaSUrl;
         }
 
         public async Task<string> GetImageUploadSasUrlAsync(GetImageUploadSasUrlDto addImageDto)
         {
+            _logger.LogInformation($"ImageService|GetImageUploadSasUrlAsync: Started");
+
             ImageUpload imageUploadEntity = addImageDto.CreateImageUploadEntity();
 
             await _imageUploadRepository.AddAsync(imageUploadEntity);
+
+            _logger.LogInformation($"ImageService|GetImageUploadSasUrlAsync: Finished");
 
             return GetCreateAccessUrl(addImageDto.FileName);
         }
@@ -626,92 +710,75 @@ namespace HHAzureImageStorage.BL.Services
             return await _imageRepository.GetByIdAsnc(imageId);
         }
 
-        public async Task<ImageUpload> GetImageUpdateAsync(Guid imageId)
+        public async Task<ImageUpload> GetImageImageUploadAsync(Guid imageId)
         {
             return await _imageUploadRepository.GetByIdAsnc(imageId);
         }
 
-        public List<Image> GetByWatermarkIdAndStudioKey(Guid imageId, int studioKey)
+        public async Task SetImageReadyStatus(Guid imageId, ImageVariant imageVariant)
         {
-            return _imageRepository.GetByWatermarkIdAndStudioKey(imageId, studioKey);
-        }
+            _logger.LogInformation($"ImageService|SetImageReadyStatus: Started");
 
-        public List<Image> GetByStudioKey(int studioKey)
-        {
-            return _imageRepository.GetByStudioKey(studioKey);
-        }
-
-        public async Task RebuildThumbnailsAsync(Guid imageId, int studioKey)
-        {
-            try
-            {
-                List<Image> images = _imageRepository.GetByWatermarkIdAndStudioKey(imageId, studioKey);
-
-                if (images == null)
-                {
-                    throw new NullReferenceException();
-                }
-
-                foreach (var image in images)
-                {
-                    string filePrefix = FileHelper.GetFileNamePrefix(ImageVariant.Main);
-                    string fileName = FileHelper.GetFileName(imageId.ToString(), filePrefix, image.OriginalImageName);
-
-                    GenerateThumbnailImagesDto generateThumbnailImagesDto = new GenerateThumbnailImagesDto
-                    {
-                        ImageId = image.id,
-                        ContentType = image.MimeType,
-                        FileName = fileName,
-                        OriginalFileName = image.OriginalImageName,
-                        AutoThumbnails = image.AutoThumbnails,
-                        WatermarkMethod = image.WatermarkMethod,
-                        WatermarkImageId = image.WatermarkImageId
-                    };
-
-                    await ThumbnailImagesProcess(generateThumbnailImagesDto);
-                }
-
-                //await RemoveImagesAsync(images);
-            }
-            catch (Exception)
-            {
-
-
-                throw;
-            }
-        }
-
-        private async Task SetImageReadyStatus(Guid imageId, ImageVariant imageVariant)
-        {
             var imageStorage = _imageStorageRepository
                                 .GetByImageIdAndImageVariant(imageId, imageVariant);
 
             imageStorage.Status = ImageStatus.Ready;
 
             await _imageStorageRepository.UpdateAsync(imageStorage);
+
+            _logger.LogInformation($"ImageService|SetImageReadyStatus: Finished");
+        }
+
+        public async Task RemoveImageByIdAsync(Guid imageId)
+        {
+            _logger.LogInformation($"ImageService|RemoveImageByIdAsync: Started");
+
+            await RemoveMainImageAsync(imageId);
+            await RemoveImageThumbnailsAsync(imageId);
+
+            _logger.LogInformation($"ImageService|RemoveImageByIdAsync: Finished");
         }
 
         private async Task AddImageProcess(AddImageDto addImageDto)
         {
+            _logger.LogInformation($"ImageService|AddImageProcess: Started");
+
             string storageAccauntName = _storageHelper.GetStorageAccountName(addImageDto.ImageVariant);
             string containerName = _storageHelper.GetContainerName(addImageDto.ImageVariant);
+
+            _logger.LogInformation($"ImageService|AddImageProcess: Started CreateEntity");
 
             Image imageEntity = addImageDto.CreateImageEntity();
             ImageStorage imageStorage = addImageDto.CreateImageStorageEntity(storageAccauntName, containerName);
             ImageApplicationRetention imageApplicationRetention = addImageDto.CreateImageApplicationRetentionEntity();
 
+            _logger.LogInformation($"ImageService|AddImageProcess: Finished CreateEntity");
+
             try
             {
+                _logger.LogInformation($"ImageService|AddImageProcess: Started save to db");
+
                 await _imageRepository.AddAsync(imageEntity);
                 await _imageStorageRepository.AddAsync(imageStorage);
                 await _imageApplicationRetentionRepository.AddAsync(imageApplicationRetention);
+
+                _logger.LogInformation($"ImageService|AddImageProcess: Finished save to db");
             }
             catch (Exception ex)
             {
+                _logger.LogError($"ImageService|AddImageProcess: Failed. Exception Message: {ex.Message} : Stack: {ex.StackTrace}");
+
                 await RemoveImageDataFromDbAsync(addImageDto.ImageId, addImageDto.ImageVariant);
 
                 throw;
             }
+
+            _logger.LogInformation($"ImageService|AddImageProcess: Finished");
+        }
+
+        private static bool DoNotNeedThumbGeneration(WaterMarkType watermarkType, byte[] sourceArray, byte[] watermarkArray)
+        {
+            return watermarkType == WaterMarkType.No || watermarkArray == null || sourceArray == null;
         }
 
         private async Task RemoveImageDataFromDbAsync(Guid imageId, ImageVariant imageVariant)
@@ -724,7 +791,7 @@ namespace HHAzureImageStorage.BL.Services
 
         private async Task RemoveThumbnailImageDataFromDbAsync(Guid imageId, ImageVariant imageVariant)
         {
-            
+
             await _imageStorageRepository.RemoveAsync(imageId, imageVariant);
             await _imageStorageAccesUrlRepository.RemoveAsync(imageId, imageVariant);
         }
@@ -751,15 +818,9 @@ namespace HHAzureImageStorage.BL.Services
 
         private async Task RemoveImagesAsync(List<Image> images)
         {
-            if (images == null || images.Count == 0)
-            {
-                throw new NullReferenceException();
-            }
-
             foreach (Image image in images)
             {
-                await RemoveMainImageAsync(image.id);
-                await RemoveImageThumbnailsAsync(image.id);
+                await RemoveImageByIdAsync(image.id);
             }
         }
     }

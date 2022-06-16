@@ -4,31 +4,31 @@ using HHAzureImageStorage.FunctionApp.Models;
 using HttpMultipartParser;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
+using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Threading.Tasks;
 
-namespace HHAzureImageStorage.FunctionApp
+namespace HHAzureImageStorage.FunctionApp.Functions.HttpTriggers
 {
-    public class DeleteServiceImage
+    public class DeleteImage
     {
         private readonly ILogger _logger;
         private readonly IHttpHelper _httpHelper;
-        private readonly IImageService _uploadImageService;
+        private readonly IQueueMessageService _queueMessageService;
 
-        public DeleteServiceImage(ILoggerFactory loggerFactory,
-            IHttpHelper httpHelper,
-            IImageService uploadImageService)
+        public DeleteImage(ILoggerFactory loggerFactory, IHttpHelper httpHelper, IQueueMessageService queueMessageService)
         {
-            _logger = loggerFactory.CreateLogger<DeleteServiceImage>();            
+            _logger = loggerFactory.CreateLogger<DeleteImage>();
             _httpHelper = httpHelper;
-            _uploadImageService = uploadImageService;
+            _queueMessageService = queueMessageService;
         }
 
-        [Function("DeleteServiceImage")]
+        [Function("DeleteImage")]
+        [OpenApiOperation(operationId: "DeleteImage", tags: new[] { "image" })]
         public async Task<HttpResponseData> Run([HttpTrigger(AuthorizationLevel.Function, "post")] HttpRequestData req)
         {
-            _logger.LogInformation("DeleteServiceImage: Started");
+            _logger.LogInformation("DeleteImage: Started");
 
             var formData = await MultipartFormDataParser.ParseAsync(req.Body);
 
@@ -54,18 +54,18 @@ namespace HHAzureImageStorage.FunctionApp
 
             try
             {
-                await _uploadImageService.RemoveServiceImageAsync(imageId);
+                await _queueMessageService.SendMessageRemoveImageAsync(imageId);
             }
             catch (Exception ex)
             {
-                _logger.LogError($"DeleteServiceImage: Failed. Exception Message: {ex.Message} : Stack: {ex.StackTrace}");
+                _logger.LogError($"DeleteImage: Failed. Exception Message: {ex.Message} : Stack: {ex.StackTrace}");
 
-                return await _httpHelper.CreateFailedHttpResponseAsync(req, $"DeleteServiceImage: Failed.");
+                return await _httpHelper.CreateFailedHttpResponseAsync(req, $"DeleteImage: Failed.");
             }
 
-            _logger.LogInformation("DeleteServiceImage: Finished");
+            _logger.LogInformation("DeleteImage: Finished");
 
-            responseModel = new BaseResponseModel($"DeleteServiceImage: The image with id {imageId} was deleted");
+            responseModel = new BaseResponseModel($"The image with id {imageId} was queued for deletion");
 
             return await _httpHelper.CreateSuccessfulHttpResponseAsync(req, responseModel);
         }

@@ -10,7 +10,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace HHAzureImageStorage.FunctionApp
+namespace HHAzureImageStorage.FunctionApp.Functions.HttpTriggers
 {
     public class ValidateCode
     {
@@ -95,7 +95,7 @@ namespace HHAzureImageStorage.FunctionApp
                     UserId = userId
                 };
 
-                ValidateAutoPostCodeResponse hhihResponse = !isDirectPost ? await _hhihHttpClient.DirectPostV2ValidateCodeAsync(requestModel)
+                ValidateAutoPostCodeResponse hhihResponse = isDirectPost ? await _hhihHttpClient.DirectPostV2ValidateCodeAsync(requestModel)
                     : await _hhihHttpClient.AutoPostV3ValidateCodeAsync(requestModel);
 
                 _logger.LogInformation("ValidateCode: Finished");

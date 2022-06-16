@@ -27,13 +27,7 @@
         public string ContainerNameMain { get; set; }
 
         public string ContainerNameThumbnail { get; set; }
-
-        public string StorageAccountName { get; internal set; }
-
-        public int StorageContainerUrlExpireMinutes { get; set; }
-
-        public int StorageContainerUrlForceNewExpireWithinMinutes { get; set; }
-
+        
         public int UploadsContainerUrlExpireMinutes { get; set; }
 
         public int SasUrlExpireDatetimeDeltaMinutes { get; set; }

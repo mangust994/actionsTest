@@ -12,17 +12,15 @@ using HttpMultipartParser;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
-using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Enums;
 using Microsoft.Extensions.Logging;
 using Microsoft.OpenApi.Models;
 using System;
 using System.IO;
 using System.Linq;
-using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace HHAzureImageStorage.FunctionApp
+namespace HHAzureImageStorage.FunctionApp.Functions.HttpTriggers
 {
     public class AddImage
     {
@@ -32,29 +30,23 @@ namespace HHAzureImageStorage.FunctionApp
         private readonly IImageService _uploadImageService;
 
         private readonly HHIHHttpClient _hhihHttpClient;
-        private readonly QueueClient _storageQueueClient;        
+        private readonly IQueueMessageService _queueMessageService;
 
         public AddImage(ILoggerFactory loggerFactory, IUploadFileHelper uploadFileHelper,
-            IHttpHelper httpHelper, HHIHHttpClient hhihHttpClien, QueueClient storageQueueClient,
+            IHttpHelper httpHelper, HHIHHttpClient hhihHttpClien, IQueueMessageService queueMessageService,
             IImageService uploadImageService)
         {
             _logger = loggerFactory.CreateLogger<AddImage>();
-            _uploadFileHelper = uploadFileHelper;            
+            _uploadFileHelper = uploadFileHelper;
             _hhihHttpClient = hhihHttpClien;
-            _storageQueueClient = storageQueueClient;
             _httpHelper = httpHelper;
             _uploadImageService = uploadImageService;
+            _queueMessageService = queueMessageService;
         }
 
         [Function("AddImage")]
         [OpenApiOperation(operationId: "AddImage", tags: new[] { "image" })]
-
-        //[OpenApiSecurity("function_key", SecuritySchemeType.ApiKey, Name = "x-functions-key", In = OpenApiSecurityLocationType.Header)]
-
-        //[OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "text/json", bodyType: typeof(BaseResponseModel), Description = "image upload response object")]
-        //[OpenApiResponseWithBody(statusCode: HttpStatusCode.BadRequest, contentType: "text/json", bodyType: typeof(string), Description = "required parameters not provided")]
-        //[OpenApiResponseWithBody(statusCode: HttpStatusCode.Forbidden, contentType: "text/json", bodyType: typeof(string), Description = "forbidden")]
-        public async Task<HttpResponseData> Run([HttpTrigger(AuthorizationLevel.Function, "post", Route = null)] 
+        public async Task<HttpResponseData> Run([HttpTrigger(AuthorizationLevel.Function, "post", Route = null)]
             HttpRequestData req)
         {
             _logger.LogInformation("AddImage: Started");
@@ -177,7 +169,7 @@ namespace HHAzureImageStorage.FunctionApp
 
                     await _uploadImageService.RemoveUploadedImageAsync(imageId, fileName, imageVariant);
 
-                    _logger.LogInformation($"AddImage: Finished RemoveUploadedImageAsync for {imageId} imageId");                    
+                    _logger.LogInformation($"AddImage: Finished RemoveUploadedImageAsync for {imageId} imageId");
 
                     var hihErrorMessage = System.Text.Json.JsonSerializer.Serialize(hhihAddImageResponse);
 
@@ -188,13 +180,13 @@ namespace HHAzureImageStorage.FunctionApp
             }
             catch (Exception ex)
             {
-                _logger.LogError("AddImage Error.", ex);
+                _logger.LogError($"AddImage: Failed. Exception Message: {ex.Message} : Stack: {ex.StackTrace}");
 
                 _logger.LogInformation($"AddImage: Started RemoveUploadedImageAsync for {imageId} imageId");
 
                 await _uploadImageService.RemoveUploadedImageAsync(imageId, fileName, imageVariant);
 
-                _logger.LogInformation($"AddImage: Finished RemoveUploadedImageAsync for {imageId} imageId");                
+                _logger.LogInformation($"AddImage: Finished RemoveUploadedImageAsync for {imageId} imageId");
 
                 responseMessage += ex.Message;
             }
@@ -208,8 +200,8 @@ namespace HHAzureImageStorage.FunctionApp
 
         private static string ValidateRequestModel(bool isDirectPost, string errorMessage, AddImageRequestModel requestModel, string originalFileName)
         {
-            StringBuilder errorMessageBuilder = new StringBuilder(errorMessage);    
-            
+            StringBuilder errorMessageBuilder = new StringBuilder(errorMessage);
+
             if (string.IsNullOrEmpty(requestModel.SecurityKey))
             {
                 errorMessageBuilder.Append(" SecurityKey is required.");
@@ -256,9 +248,7 @@ namespace HHAzureImageStorage.FunctionApp
                 WatermarkImageId = hhihAddImageResponse.WatermarkImageId
             };
 
-            var queueMessage = System.Text.Json.JsonSerializer.Serialize(generateThumbnailImagesDto);
-
-            await _storageQueueClient.SendMessageAsync(queueMessage);
+            await _queueMessageService.SendMessageProcessThumbnailImagesAsync(generateThumbnailImagesDto);
         }
 
         private static AddImageToHHIHRequestModel GetHHIHRequestModelFromRequestModel(AddImageRequestModel requestModel,

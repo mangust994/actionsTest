@@ -1,14 +1,12 @@
 // Default URL for triggering event grid function in the local environment.
 // http://localhost:7071/runtime/webhooks/EventGrid?functionName={functionname}
 using Azure.Messaging.EventGrid.SystemEvents;
-using Azure.Storage.Queues;
 using HHAzureImageStorage.BL.Models.DTOs;
 using HHAzureImageStorage.BL.Services;
 using HHAzureImageStorage.BL.Utilities;
 using HHAzureImageStorage.Core.Interfaces.Processors;
 using HHAzureImageStorage.Domain.Entities;
 using HHAzureImageStorage.Domain.Enums;
-using HHAzureImageStorage.FunctionApp.Helpers;
 using HHAzureImageStorage.IntegrationHHIH;
 using HHAzureImageStorage.IntegrationHHIH.Models;
 using Microsoft.Azure.Functions.Worker;
@@ -18,30 +16,25 @@ using System.IO;
 using System.Text.Json;
 using System.Threading.Tasks;
 
-namespace HHAzureImageStorage.FunctionApp
+namespace HHAzureImageStorage.FunctionApp.Functions.Processors
 {
     public class ImageUploadProcessor
     {
         private readonly ILogger _logger;
         private readonly IStorageProcessor _storageProcessor;
-        private readonly IHttpHelper _httpHelper;
         private readonly IImageService _uploadImageService;
 
-        private readonly QueueClient _storageQueueClient;
+        private readonly IQueueMessageService _queueMessageService;
         private readonly HHIHHttpClient _hhihHttpClient;
 
         public ImageUploadProcessor(ILoggerFactory loggerFactory, IStorageProcessor storageProcessor,
-            IHttpHelper httpHelper,
-            QueueClient storageQueueClient,
-            HHIHHttpClient hhihHttpClien,
-            IImageService uploadImageService)
+            IQueueMessageService queueMessageService, HHIHHttpClient hhihHttpClien, IImageService uploadImageService)
         {
             _logger = loggerFactory.CreateLogger<ImageUploadProcessor>();
             _storageProcessor = storageProcessor;
-            _httpHelper = httpHelper;
             _uploadImageService = uploadImageService;
-            _storageQueueClient = storageQueueClient;
             _hhihHttpClient = hhihHttpClien;
+            _queueMessageService = queueMessageService;
         }
 
         [Function("ImageUploadProcessor")]
@@ -55,42 +48,61 @@ namespace HHAzureImageStorage.FunctionApp
                 //Load the blob data
                 var createdEvent = JsonSerializer.Deserialize<StorageBlobCreatedEventData>(input.Data.ToString());
 
-                _logger.LogInformation(String.Format("ImageUploadProcessor: Processing URL {0}", createdEvent.Url));
-
                 var uploadFileUri = new Uri(createdEvent.Url);
                 string contentType = createdEvent.ContentType;
                 var sourceFileName = _storageProcessor.UploadFileGetName(uploadFileUri);
-
                 string imageIdValue = Path.GetFileNameWithoutExtension(sourceFileName);
+
+                _logger.LogInformation($"ImageUploadProcessor: Processing URL {createdEvent.Url}|{sourceFileName}|{imageIdValue}");
+
                 Guid imageId = new Guid(imageIdValue);
 
-                ImageUpload imageUpload = await _uploadImageService.GetImageUpdateAsync(imageId);
+                ImageUpload imageUpload = await _uploadImageService.GetImageImageUploadAsync(imageId);
 
-                string originalFileName = imageUpload.OriginalImageName;
+                _logger.LogInformation($"ImageUploadProcessor: Started StorageFileGetAsync for {imageId} imageId");
 
                 Stream fileStream = await _storageProcessor.StorageFileGetAsync(sourceFileName, ImageVariant.Temp);
+
+                _logger.LogInformation($"ImageUploadProcessor: Finished StorageFileGetAsync for {imageId} imageId");
 
                 fileStream.Seek(0L, SeekOrigin.Begin);
 
                 var mainImageVariant = ImageVariant.Main;
-                var sourceApp = ImageUploader.DirectPost;
+                var sourceApp = ImageUploader.UI;
 
                 string filePrefix = FileHelper.GetFileNamePrefix(mainImageVariant);
-                string fileName = FileHelper.GetFileName(imageId.ToString(), filePrefix, originalFileName);
+                string fileName = FileHelper.GetFileName(imageId.ToString(), filePrefix, imageUpload.OriginalImageName);
 
                 AddImageDto addImageDto = AddImageDto.CreateInstance(imageId,
-                    fileStream, contentType, originalFileName, fileName, mainImageVariant, sourceApp);
+                    fileStream, contentType, imageUpload.OriginalImageName, fileName, mainImageVariant, sourceApp);
+
+                addImageDto.AutoThumbnails = imageUpload.AutoThumbnails;
+                addImageDto.WatermarkImageId = imageUpload.WatermarkImageId;
+                addImageDto.WatermarkMethod = imageUpload.WatermarkMethod;
+                addImageDto.HHIHPhotographerKey = imageUpload.hhihPhotographerKey;
+                addImageDto.HHIHEventKey = imageUpload.hhihEventKey;
 
                 fileStream.Seek(0L, SeekOrigin.Begin);
 
+                _logger.LogInformation($"ImageUploadProcessor: Started UploadImageProcessAsync for {imageId} imageId");
+
                 await _uploadImageService.UploadImageProcessAsync(addImageDto);
+                await _uploadImageService.SetImageReadyStatus(addImageDto.ImageId, addImageDto.ImageVariant);
+
+                _logger.LogInformation($"ImageUploadProcessor: Finished UploadImageProcessAsync for {imageId} imageId");
 
                 AddCloudImageRequestModel hihRequestModel = GetHHIHRequestModel(imageUpload);
 
+                _logger.LogInformation($"ImageUploadProcessor: Started CloudAddPhotoAsync for {imageId} imageId");
+
                 AddImageInfoResponseModel hhihAddImageResponse = await _hhihHttpClient.CloudAddPhotoAsync(hihRequestModel);
+
+                _logger.LogInformation($"ImageUploadProcessor: Finished CloudAddPhotoAsync for {imageId} imageId");
 
                 if (hhihAddImageResponse.Success)
                 {
+                    _logger.LogInformation("ImageUploadProcessor: CloudAddPhotoAsync - Success");
+
                     GenerateThumbnailImagesDto generateThumbnailImagesDto = new GenerateThumbnailImagesDto
                     {
                         ImageId = addImageDto.ImageId,
@@ -102,11 +114,18 @@ namespace HHAzureImageStorage.FunctionApp
                         WatermarkImageId = imageUpload.WatermarkImageId
                     };
 
+                    _logger.LogInformation($"ImageUploadProcessor: Started SendQueueMessageAsync for {imageId} imageId");
+
                     await SendQueueMessageAsync(generateThumbnailImagesDto);
+
+                    _logger.LogInformation($"ImageUploadProcessor: Finished SendQueueMessageAsync for {imageId} imageId");
+
+                    _logger.LogInformation("ImageUploadProcessor: Finished");
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
+                _logger.LogError($"ImageUploadProcessor: Failed. Exception Message: {ex.Message} : Stack: {ex.StackTrace}");
 
                 throw;
             }
@@ -124,14 +143,14 @@ namespace HHAzureImageStorage.FunctionApp
             hihRequestModel.HiResDownload = imageUpload.HiResDownload;
             hihRequestModel.CloudImageId = imageUpload.id.ToString();
             hihRequestModel.AutoThumbnails = imageUpload.AutoThumbnails;
-            hihRequestModel.SecurityKey = "ReplaceToSecurityKey";
+            hihRequestModel.SecurityKey = "ReplaceToSecurityKey";// TODO
+
             return hihRequestModel;
         }
 
         private async Task SendQueueMessageAsync(GenerateThumbnailImagesDto generateThumbnailImagesDto)
         {
-            var queueMessage = System.Text.Json.JsonSerializer.Serialize(generateThumbnailImagesDto);
-            await _storageQueueClient.SendMessageAsync(queueMessage);
+            await _queueMessageService.SendMessageProcessThumbnailImagesAsync(generateThumbnailImagesDto);
         }
     }
 

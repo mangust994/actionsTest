@@ -10,6 +10,10 @@
 
         public string OriginalImageName { get; set; }
 
+        public int OriginalImageWidthPixels { get; set; }
+
+        public int OriginalImageHeightPixels { get; set; }
+
         public GetSaSUrlsResponseModelExtended(): base()
         {
             

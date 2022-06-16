@@ -1,6 +1,5 @@
 using HHAzureImageStorage.BL.Models.DTOs;
 using HHAzureImageStorage.BL.Services;
-using HHAzureImageStorage.Domain.Enums;
 using HHAzureImageStorage.FunctionApp.Helpers;
 using HHAzureImageStorage.FunctionApp.Models;
 using HttpMultipartParser;
@@ -10,25 +9,23 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Threading.Tasks;
 
-namespace HHAzureImageStorage.FunctionApp
+namespace HHAzureImageStorage.FunctionApp.Functions.HttpTriggers
 {
     public class RebuildThumbnailsWithWatermark
     {
         private readonly ILogger _logger;
-        private readonly IImageService _uploadImageService;
+        private readonly IQueueMessageService _queueMessageService;
         private readonly IHttpHelper _httpHelper;
 
-        public RebuildThumbnailsWithWatermark(ILoggerFactory loggerFactory,
-            IHttpHelper httpHelper,
-            IImageService uploadImageService)
+        public RebuildThumbnailsWithWatermark(ILoggerFactory loggerFactory, IHttpHelper httpHelper, IQueueMessageService queueMessageService)
         {
             _logger = loggerFactory.CreateLogger<RebuildThumbnailsWithWatermark>();
             _httpHelper = httpHelper;
-            _uploadImageService = uploadImageService;
+            _queueMessageService = queueMessageService;
         }
 
         [Function("RebuildThumbnailsWithWatermark")]
-        public async Task<HttpResponseData> Run([HttpTrigger(AuthorizationLevel.Function, "get", "post")] HttpRequestData req)
+        public async Task<HttpResponseData> Run([HttpTrigger(AuthorizationLevel.Function, "post")] HttpRequestData req)
         {
             _logger.LogInformation("RebuildThumbnailsWithWatermark: Started");
 
@@ -36,29 +33,14 @@ namespace HHAzureImageStorage.FunctionApp
 
             string imageIdValue = formData.GetParameterValue("ImageId")?.Trim();
             string studioKeyValue = formData.GetParameterValue("StudioKey")?.Trim();
+            string eventKeyValue = formData.GetParameterValue("EventKey")?.Trim();
             string watermarkMethod = formData.GetParameterValue("WatermarkMethod")?.Trim();
 
             BaseResponseModel responseModel;
 
-            if (string.IsNullOrEmpty(imageIdValue))
-            {
-                responseModel = new BaseResponseModel("ImageId is required.", false);
-
-                return await _httpHelper.CreateFailedHttpResponseAsync(req, responseModel);
-            }
-
-            var imageId = new Guid(imageIdValue);
-
-            if (imageId == Guid.Empty)
-            {
-                responseModel = new BaseResponseModel("Input valide ImageId.", false);
-
-                return await _httpHelper.CreateFailedHttpResponseAsync(req, responseModel);
-            }
-
             if (string.IsNullOrEmpty(studioKeyValue))
             {
-                responseModel = new BaseResponseModel("ImageId is required.", false);
+                responseModel = new BaseResponseModel("StudioKey is required.", false);
 
                 return await _httpHelper.CreateFailedHttpResponseAsync(req, responseModel);
             }
@@ -70,28 +52,43 @@ namespace HHAzureImageStorage.FunctionApp
                 return await _httpHelper.CreateFailedHttpResponseAsync(req, responseModel);
             }
 
+            if (string.IsNullOrEmpty(eventKeyValue))
+            {
+                responseModel = new BaseResponseModel("EventKey is required.", false);
+
+                return await _httpHelper.CreateFailedHttpResponseAsync(req, responseModel);
+            }
+
+            if (!int.TryParse(eventKeyValue, out int eventKey))
+            {
+                responseModel = new BaseResponseModel("Input valide EventKey!", false);
+
+                return await _httpHelper.CreateFailedHttpResponseAsync(req, responseModel);
+            }
+
             if (string.IsNullOrEmpty(watermarkMethod))
             {
                 responseModel = new BaseResponseModel("WatermarkMethod is required.", false);
 
                 return await _httpHelper.CreateFailedHttpResponseAsync(req, responseModel);
             }
-
-            RebuildThumbnailsWithWatermarkDto modelDto = new RebuildThumbnailsWithWatermarkDto
-            {
-                ImageIdStringValue = imageIdValue,
-                ImageId = imageId,
-                WatermarkMethod = watermarkMethod,
-                StudioKey = studioKey
-            };
+            
 
             try
             {
-                _logger.LogInformation("RebuildThumbnailsWithWatermark: Started RebuildThumbnailsWithWatermarkAsync");
+                _logger.LogInformation("RebuildThumbnailsWithWatermark: Started SendMessageRebuildThumbnailsWithWatermarkAsync");
 
-                await _uploadImageService.RebuildThumbnailsWithWatermarkAsync(modelDto);
+                RebuildThumbnailsWithWatermarkDto modelDto = new RebuildThumbnailsWithWatermarkDto
+                {
+                    WatermarkImageId = imageIdValue,
+                    WatermarkMethod = watermarkMethod,
+                    StudioKey = studioKey,
+                    EventKey = eventKey
+                };
 
-                _logger.LogInformation("RebuildThumbnailsWithWatermark: Finished RebuildThumbnailsWithWatermarkAsync");
+                await _queueMessageService.SendMessageRebuildThumbnailsWithWatermarkAsync(modelDto);
+
+                _logger.LogInformation("RebuildThumbnailsWithWatermark: Finished SendMessageRebuildThumbnailsWithWatermarkAsync");
             }
             catch (Exception ex)
             {
@@ -102,7 +99,7 @@ namespace HHAzureImageStorage.FunctionApp
 
             _logger.LogInformation("RebuildThumbnailsWithWatermark: Finished");
 
-            responseModel = new BaseResponseModel($"The images with watermarkId {imageId} was queueted to update");
+            responseModel = new BaseResponseModel($"The images from the studio {studioKey} with the event {eventKey} were queued to update");
 
             return await _httpHelper.CreateSuccessfulHttpResponseAsync(req, responseModel);
         }

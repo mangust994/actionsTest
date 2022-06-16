@@ -2,6 +2,7 @@
 using HHAzureImageStorage.DAL.Interfaces;
 using HHAzureImageStorage.Domain.Entities;
 using Microsoft.Azure.Cosmos;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Threading.Tasks;
 
@@ -10,8 +11,13 @@ namespace HHAzureImageStorage.CosmosRepository.Repositories
     public class ImageApplicationRetentionCosmosRepository : IImageApplicationRetentionRepository
     {
         private readonly IImageApplicationRetentionCosmosContext _context;
+        private readonly ILogger _logger;
 
-        public ImageApplicationRetentionCosmosRepository(IImageApplicationRetentionCosmosContext context) => this._context = context;
+        public ImageApplicationRetentionCosmosRepository(IImageApplicationRetentionCosmosContext context, ILoggerFactory loggerFactory)
+        {
+            _context = context;
+            _logger = loggerFactory.CreateLogger<ImageApplicationRetentionCosmosRepository>();
+        }
 
         public async Task<ImageApplicationRetention> AddAsync(ImageApplicationRetention entity)
         {
@@ -33,6 +39,8 @@ namespace HHAzureImageStorage.CosmosRepository.Repositories
             }
             catch (CosmosException ex)
             {
+                _logger.LogError($"ImageApplicationRetentionCosmosRepository|GetByIdAsnc: Failed. Exception Message: {ex.Message} : Stack: {ex.StackTrace}");
+
                 return null;
             }
         }

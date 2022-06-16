@@ -7,21 +7,19 @@ using Microsoft.Azure.Functions.Worker.Http;
 using Microsoft.Extensions.Logging;
 using System.Threading.Tasks;
 
-namespace HHAzureImageStorage.FunctionApp
+namespace HHAzureImageStorage.FunctionApp.Functions.HttpTriggers
 {
     public class DeleteImagesByEventKey
     {
         private readonly ILogger _logger;
-        private readonly IImageService _uploadImageService;
+        private readonly IQueueMessageService _queueMessageService;
         private readonly IHttpHelper _httpHelper;
 
-        public DeleteImagesByEventKey(ILoggerFactory loggerFactory,
-            IHttpHelper httpHelper,
-            IImageService uploadImageService)
+        public DeleteImagesByEventKey(ILoggerFactory loggerFactory, IHttpHelper httpHelper, IQueueMessageService queueMessageService)
         {
             _logger = loggerFactory.CreateLogger<DeleteImagesByEventKey>();
             _httpHelper = httpHelper;
-            _uploadImageService = uploadImageService;
+            _queueMessageService = queueMessageService;
         }
 
         [Function("DeleteImagesByEventKey")]
@@ -40,17 +38,17 @@ namespace HHAzureImageStorage.FunctionApp
                 responseModel = new BaseResponseModel("EventKey is required!", false);
 
                 return await _httpHelper.CreateFailedHttpResponseAsync(req, responseModel);
-            }            
+            }
 
             try
             {
                 if (int.TryParse(eventKeyValue, out int eventKey))
                 {
-                    await _uploadImageService.RemoveImagesByEventKeyAsync(eventKey);
+                    await _queueMessageService.SendMessageDeleteImagesByEventAsync(eventKey);
 
                     _logger.LogInformation("DeleteImagesByEventKey: Finished");
 
-                    responseModel = new BaseResponseModel($"All images for event with {eventKey} key were deleted");
+                    responseModel = new BaseResponseModel($"All images for event with {eventKey} key were queued for deletion");
 
                     return await _httpHelper.CreateSuccessfulHttpResponseAsync(req, responseModel);
                 }

@@ -22,7 +22,11 @@ namespace HHAzureImageStorage.Domain.Enums
         Ready = 'R'
     }
 
-    public enum ImageUploader
+    //InProgress = 73, // 0x00000049
+    //NeedsRebuild = 78, // 0x0000004E
+    //Ready = 82, // 0x00000052
+
+public enum ImageUploader
     {
         DirectPost,
         AutoPost,

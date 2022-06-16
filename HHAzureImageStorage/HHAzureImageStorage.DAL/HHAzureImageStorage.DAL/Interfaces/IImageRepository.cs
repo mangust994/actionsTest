@@ -8,6 +8,7 @@ namespace HHAzureImageStorage.DAL.Interfaces
     {
         List<Image> GetByEventKey(int eventKey);
         List<Image> GetByStudioKey(int studioKey);
+        List<Image> GetByStudioKeyAndEventKey(int studioKey, int eventKey);
         List<Image> GetByWatermarkIdAndStudioKey(Guid imageId, int studioKey);
     }
 }

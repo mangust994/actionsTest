@@ -51,24 +51,12 @@ namespace HHAzureImageStorage.FunctionApp
                     services.AddSingleton<IUploadFileHelper, UploadFileHelper>();
                     services.AddSingleton<IHttpHelper, HttpHelper>();
                     services.AddScoped<IImageService, ImageService>();
+                    services.AddScoped<IQueueMessageService, AzurServiceBusQueueMessageService>();
 
                     services.AddCosmosRepository(config);
                     services.AddAzureBlobStorage(config);
 
                     services.AddHttpClient<HHIHHttpClient>();
-
-                    services.AddAzureClients(bundler =>
-                    {
-                        bundler.AddClient<QueueClient, QueueClientOptions>((options, _, _) =>
-                       {
-                           options.MessageEncoding = QueueMessageEncoding.Base64;
-
-                           var conString = Environment.GetEnvironmentVariable("QUEUE_CON_STR");
-                           var queueName = Environment.GetEnvironmentVariable("QUEUE_NAME");
-
-                           return new QueueClient(conString, queueName, options);
-                       });
-                    });
                 })
                 .Build();
 

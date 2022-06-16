@@ -11,7 +11,7 @@ using System;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace HHAzureImageStorage.FunctionApp
+namespace HHAzureImageStorage.FunctionApp.Functions.HttpTriggers
 {
     public class GetImageUploadSasUrl
     {
@@ -50,17 +50,8 @@ namespace HHAzureImageStorage.FunctionApp
 
                 requestModel.OriginalFileName = originalFileName;
 
-                //errorMessage = ValidateRequestModel(isDirectPost, errorMessage, requestModel, originalFileName);
-
-                //if (!string.IsNullOrEmpty(errorMessage))
-                //{
-                //    responseModel = new BaseResponseModel(errorMessage, false);
-
-                //    return await _httpHelper.CreateFailedHttpResponseAsync(req, responseModel);
-                //}
-
                 GetImageUploadSasUrlDto addImageDto = GetImageUploadSasUrlDto.CreateInstance(_uploadFileHelper.GetValidPhotoName(originalFileName));
-                
+
                 SetDataForDto(requestModel, addImageDto);
 
                 _logger.LogInformation("GetImageUploadSasUrl: Started GetImageUploadSasUrlAsync");
@@ -107,7 +98,7 @@ namespace HHAzureImageStorage.FunctionApp
             bool.TryParse(formData.GetParameterValue("HiResDownload")?.Trim(), out bool hiResDownload);
             bool.TryParse(formData.GetParameterValue("HasTransparentAlphaLayer")?.Trim(), out bool hasTransparentAlphaLayer);
             DateTime.TryParse(formData.GetParameterValue("ExpirationDate")?.Trim(), out DateTime expirationDate);
-            
+
             GetImageUploadSasUrlRequestModel requestModel = new GetImageUploadSasUrlRequestModel
             {
                 PhotographerKey = studioKey,

@@ -15,7 +15,7 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 
-namespace HHAzureImageStorage.FunctionApp
+namespace HHAzureImageStorage.FunctionApp.Functions.HttpTriggers
 {
     public class GetImageSasUrl
     {
@@ -36,12 +36,6 @@ namespace HHAzureImageStorage.FunctionApp
         [OpenApiSecurity("function_key", SecuritySchemeType.ApiKey, Name = "x-functions-key", In = OpenApiSecurityLocationType.Header)]
 
         [OpenApiRequestBody(contentType: "multipart/form-data", bodyType: typeof(object), Description = "GetSaSUrlsRequestModel", Required = true)]
-        //[OpenApiPropertyAttribute()]
-
-
-        //[OpenApiResponseWithBody(statusCode: HttpStatusCode.OK, contentType: "text/plain", bodyType: typeof(HttpResponseData), Description = " response object")]
-        //[OpenApiResponseWithBody(statusCode: HttpStatusCode.BadRequest, contentType: "text/json", bodyType: typeof(string), Description = "required parameters not provided")]
-        //[OpenApiResponseWithBody(statusCode: HttpStatusCode.Forbidden, contentType: "text/json", bodyType: typeof(string), Description = "forbidden")]
         public async Task<HttpResponseData> Run([HttpTrigger(AuthorizationLevel.Function, "post", Route = null)]
             HttpRequestData req)
         {
@@ -57,10 +51,12 @@ namespace HHAzureImageStorage.FunctionApp
 
                 if (image == null)
                 {
-                    _logger.LogInformation($"GetImageSasUrl: Image with {requestModel.ImageIdGuid} id is not found");
+                    string errorMessage = $"Image with {requestModel.ImageIdGuid} id is not found";
+                    
+                    _logger.LogInformation($"GetImageSasUrl: {errorMessage}");
 
-                    return await _httpHelper.CreateFailedHttpResponseAsync(req, null);
-                }                
+                    return await _httpHelper.CreateFailedHttpResponseAsync(req, new BaseResponseModel(errorMessage, false));
+                }
 
                 foreach (ImageVariant imageVariant in requestModel.ImageVariantIds)
                 {
@@ -102,7 +98,9 @@ namespace HHAzureImageStorage.FunctionApp
                 HasTransparentAlphaLayer = image.HasTransparentAlphaLayer,
                 ColorCorrectLevel = image.ColorCorrectLevel,
                 MimeType = image.MimeType,
-                OriginalImageName = image.OriginalImageName
+                OriginalImageName = image.OriginalImageName,
+                OriginalImageHeightPixels = image.HeightPixels,
+                OriginalImageWidthPixels = image.WidthPixels
             };
 
             return responseModelExtended;

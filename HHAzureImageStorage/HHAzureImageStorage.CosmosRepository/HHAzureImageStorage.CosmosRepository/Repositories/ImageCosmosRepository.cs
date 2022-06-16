@@ -2,6 +2,7 @@
 using HHAzureImageStorage.DAL.Interfaces;
 using HHAzureImageStorage.Domain.Entities;
 using Microsoft.Azure.Cosmos;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,8 +13,13 @@ namespace HHAzureImageStorage.CosmosRepository.Repositories
     public class ImageCosmosRepository : IImageRepository
     {
         private readonly IImageCosmosContext _context;
+        private readonly ILogger _logger;
 
-        public ImageCosmosRepository(IImageCosmosContext context) => this._context = context;
+        public ImageCosmosRepository(IImageCosmosContext context, ILoggerFactory loggerFactory)
+        {
+            _context = context;
+            _logger = loggerFactory.CreateLogger<ImageCosmosRepository>();
+        }
 
         public async Task<Image> AddAsync(Image imageEntity)
         {
@@ -35,6 +41,8 @@ namespace HHAzureImageStorage.CosmosRepository.Repositories
             }
             catch (CosmosException ex)
             {
+                _logger.LogError($"ImageCosmosRepository|GetByIdAsnc: Failed. Exception Message: {ex.Message} : Stack: {ex.StackTrace}");
+
                 return null;
             }
         }
@@ -52,6 +60,8 @@ namespace HHAzureImageStorage.CosmosRepository.Repositories
             }
             catch (CosmosException ex)
             {
+                _logger.LogError($"ImageCosmosRepository|GetByEventKey: Failed. Exception Message: {ex.Message} : Stack: {ex.StackTrace}");
+
                 return null;
             }
         }
@@ -69,6 +79,27 @@ namespace HHAzureImageStorage.CosmosRepository.Repositories
             }
             catch (CosmosException ex)
             {
+                _logger.LogError($"ImageCosmosRepository|GetByStudioKey: Failed. Exception Message: {ex.Message} : Stack: {ex.StackTrace}");
+
+                return null;
+            }
+        }
+
+        public List<Image> GetByStudioKeyAndEventKey(int studioKey, int eventKey)
+        {
+            try
+            {
+                var getImageQuery = _context.Container
+                            .GetItemLinqQueryable<Image>(true);
+
+                return getImageQuery
+                    .Where(x => x.hhihPhotographerKey == studioKey && x.hhihEventKey == eventKey)
+                    .ToList();
+            }
+            catch (CosmosException ex)
+            {
+                _logger.LogError($"ImageCosmosRepository|GetByStudioKeyAndEventKey: Failed. Exception Message: {ex.Message} : Stack: {ex.StackTrace}");
+
                 return null;
             }
         }
@@ -86,6 +117,8 @@ namespace HHAzureImageStorage.CosmosRepository.Repositories
             }
             catch (CosmosException ex)
             {
+                _logger.LogError($"ImageCosmosRepository|GetByWatermarkIdAndStudioKey: Failed. Exception Message: {ex.Message} : Stack: {ex.StackTrace}");
+
                 return null;
             }
         }

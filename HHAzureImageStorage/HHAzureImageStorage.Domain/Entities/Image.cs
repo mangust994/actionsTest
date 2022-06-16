@@ -28,5 +28,11 @@ namespace HHAzureImageStorage.Domain.Entities
         public int hhihEventKey { get; set; }
 
         public Guid BackupImageGUID { get; set; }
+
+        public int WidthPixels { get; set; }
+
+        public int HeightPixels { get; set; }
+
+        public int SizeInBytes { get; set; }
     }
 }

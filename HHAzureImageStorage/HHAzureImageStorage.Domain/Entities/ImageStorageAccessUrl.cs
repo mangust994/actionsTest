@@ -17,7 +17,5 @@ namespace HHAzureImageStorage.Domain.Entities
         public string SaSUrl { get; set; }
 
         public DateTime SasUrlExpireDatetime { get; set; }
-
-        public string OriginalImageName { get; set; }
     }
 }

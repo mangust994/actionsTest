@@ -13,9 +13,9 @@ using System;
 using System.IO;
 using System.Threading.Tasks;
 
-namespace HHAzureImageStorage.FunctionApp
+namespace HHAzureImageStorage.FunctionApp.Functions.HttpTriggers
 {
-    public class UploadServiceImage
+    public class AddServiceImage
     {
         private readonly ILogger _logger;
 
@@ -24,24 +24,24 @@ namespace HHAzureImageStorage.FunctionApp
 
         private readonly IImageService _uploadImageService;
 
-        public UploadServiceImage(ILoggerFactory loggerFactory,
+        public AddServiceImage(ILoggerFactory loggerFactory,
             IUploadFileHelper uploadFileHelper,
             IHttpHelper httpHelper,
             IImageService uploadImageService)
         {
-            _logger = loggerFactory.CreateLogger<UploadServiceImage>();
+            _logger = loggerFactory.CreateLogger<AddServiceImage>();
             _uploadFileHelper = uploadFileHelper;
             _httpHelper = httpHelper;
             _uploadImageService = uploadImageService;
         }
 
-        [Function("UploadServiceImage")]
-        [OpenApiOperation(operationId: "UploadServiceImage", tags: new[] { "image" })]
+        [Function("AddServiceImage")]
+        [OpenApiOperation(operationId: "AddServiceImage", tags: new[] { "image" })]
         public async Task<HttpResponseData> Run([HttpTrigger(AuthorizationLevel.Function, "post")] HttpRequestData req)
         {
-            _logger.LogInformation("UploadWatermarkImage: Started");
+            _logger.LogInformation("AddServiceImage: Started");
 
-            string responseMessage = "UploadWatermarkImage function executed unsuccessfully.";
+            string responseMessage = "AddServiceImage function executed unsuccessfully.";
 
             var formData = await MultipartFormDataParser.ParseAsync(req.Body);
 
@@ -71,26 +71,28 @@ namespace HHAzureImageStorage.FunctionApp
 
                 AddImageDto addImageDto = AddImageDto.CreateInstance(imageId,
                     fileStream, file.ContentType, originalFileName, fileName, imageVariant, sourceApp);
-                
+
                 try
                 {
                     await _uploadImageService.UploadWatermarkImageProcess(addImageDto);
 
+                    await _uploadImageService.SetImageReadyStatus(addImageDto.ImageId, addImageDto.ImageVariant);
+
                     var responseModel = new BaseResponseModel(addImageDto.ImageId.ToString());
 
-                    _logger.LogInformation("UploadWatermarkImage: Finished");
+                    _logger.LogInformation("AddServiceImage: Finished");
 
                     return await _httpHelper.CreateSuccessfulHttpResponseAsync(req, responseModel);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError("UploadWatermarkImage Error.", ex);
+                    _logger.LogError("AddServiceImage Error.", ex);
 
                     responseMessage += ex.Message;
                 }
             }
 
-            _logger.LogInformation("UploadWatermarkImage: Finished");
+            _logger.LogInformation("AddServiceImage: Finished");
 
             return await _httpHelper.CreateFailedHttpResponseAsync(req, responseMessage);
         }

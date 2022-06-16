@@ -15,14 +15,14 @@ namespace HHAzureImageStorage.BlobStorageProcessor
     public class AzureBlobStorageProcessor : IStorageProcessor
     {       
         readonly IStorageHelper _storageHelper;
-        readonly ILogger _log;
+        readonly ILogger _logger;
 
         public AzureBlobStorageProcessor(IStorageHelper storageHelper,
             ILoggerFactory loggerFactory
             )
         {
             _storageHelper = storageHelper;
-            _log = loggerFactory.CreateLogger<AzureBlobStorageProcessor>();
+            _logger = loggerFactory.CreateLogger<AzureBlobStorageProcessor>();
         }        
 
         public async Task<bool> StorageFileUploadAsync(Stream content,
@@ -51,7 +51,7 @@ namespace HHAzureImageStorage.BlobStorageProcessor
             }
             catch (Exception ex)
             {
-                _log.LogError("AzureBlobStorageProcessor. StorageFileUploadAsync Error.", ex);
+                _logger.LogError($"AzureBlobStorageProcessor|StorageFileUploadAsync: Failed. Exception Message: {ex.Message} : Stack: {ex.StackTrace}");
 
                 throw;
             }
@@ -69,7 +69,7 @@ namespace HHAzureImageStorage.BlobStorageProcessor
             }
             catch (Exception ex)
             {
-                _log.LogError("AzureBlobStorageProcessor. StorageFileUploadAsync Error.", ex);
+                _logger.LogError($"AzureBlobStorageProcessor|StorageFileGetReadAccessUrl: Failed. Exception Message: {ex.Message} : Stack: {ex.StackTrace}");
             }
 
             return string.Empty;
@@ -89,7 +89,7 @@ namespace HHAzureImageStorage.BlobStorageProcessor
             }
             catch (Exception ex)
             {
-                _log.LogError("AzureBlobStorageProcessor. StorageFileDeleteAsync Error.", ex);
+                _logger.LogError($"AzureBlobStorageProcessor|StorageFileGetMetadataAsync: Failed. Exception Message: {ex.Message} : Stack: {ex.StackTrace}");
             }
 
             return metadata;
@@ -107,7 +107,7 @@ namespace HHAzureImageStorage.BlobStorageProcessor
             }
             catch (Exception ex)
             {
-                _log.LogError("AzureBlobStorageProcessor. StorageFileDeleteAsync Error.", ex);
+                _logger.LogError($"AzureBlobStorageProcessor|StorageFileDeleteAsync: Failed. Exception Message: {ex.Message} : Stack: {ex.StackTrace}");
             }
 
             return false;
@@ -132,7 +132,7 @@ namespace HHAzureImageStorage.BlobStorageProcessor
             }
             catch (Exception ex)
             {
-                _log.LogError("AzureBlobStorageProcessor. StorageFileGetAsync Error.", ex);
+                _logger.LogError($"AzureBlobStorageProcessor|StorageFileGetAsync: Failed. Exception Message: {ex.Message} : Stack: {ex.StackTrace}");
             }
 
             return null;
@@ -146,6 +146,11 @@ namespace HHAzureImageStorage.BlobStorageProcessor
                 {
                     BlobClient blobClient = await _storageHelper.GetBlobClientAsync(fileName, imageVariant);
 
+                    if (blobClient == null)
+                    {
+                        return null;
+                    }
+
                     var result = await blobClient.DownloadContentAsync();
 
                     blobClient.DownloadTo(sourceImage);
@@ -155,7 +160,7 @@ namespace HHAzureImageStorage.BlobStorageProcessor
             }
             catch (Exception ex)
             {
-                _log.LogError("AzureBlobStorageProcessor. StorageFileBytesGetAsync Error.", ex);
+                _logger.LogError($"AzureBlobStorageProcessor|StorageFileBytesGetAsync: Failed. Exception Message: {ex.Message} : Stack: {ex.StackTrace}");
             }
 
             return null;

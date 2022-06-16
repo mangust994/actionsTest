@@ -1,4 +1,5 @@
 ﻿using HHAzureImageStorage.Core.Interfaces.Processors;
+using HHAzureImageStorage.Core.Models.Responses;
 using HHAzureImageStorage.Domain.Enums;
 using ImageMagick;
 using System;
@@ -8,23 +9,41 @@ namespace HHAzureImageStorage.BL.Utilities
 {
     public class ImageResizerMagickImage : IImageResizer
     {
-        public Stream Resize(byte[] sourceArray, int longestPixelSize)
+        public ImageResizeResponse Resize(byte[] sourceArray, int longestPixelSize)
         {
             using (IMagickImage thumbAsMagickImage = GetThumbAsMagickImage(sourceArray, longestPixelSize))
             {
-                return new MemoryStream(thumbAsMagickImage.ToByteArray());
+                var byteArray = thumbAsMagickImage.ToByteArray();
+
+                return new ImageResizeResponse()
+
+                {
+                    ResizedStream = new MemoryStream(byteArray),
+                    HeightPixels = thumbAsMagickImage.Height,
+                    WidthPixels = thumbAsMagickImage.Width,
+                    SizeInBytes = byteArray.Length
+                };
             }
         }
 
-        public Stream ResizeWithWatermark(byte[] sourceArray, byte[] watermarkArray, int longestPixelSize, WaterMarkType watermarkType)
+        public ImageResizeResponse ResizeWithWatermark(byte[] sourceArray, byte[] watermarkArray, int longestPixelSize, WaterMarkType watermarkType)
         {
 
             using (IMagickImage thumbAsMagickImage = GetThumbAsMagickImage(sourceArray, longestPixelSize))
             using (IMagickImage watermarkAsMagickImage = new MagickImage(watermarkArray))
             {
                 var thumbWithWatermark = new MagickImage(drawWatermark(thumbAsMagickImage, watermarkAsMagickImage, watermarkType).ToByteArray());
-                
-                return new MemoryStream(thumbWithWatermark.ToByteArray());
+
+                var byteArray = thumbWithWatermark.ToByteArray();
+
+                return new ImageResizeResponse()
+
+                {
+                    ResizedStream = new MemoryStream(byteArray),
+                    HeightPixels = thumbWithWatermark.Height,
+                    WidthPixels = thumbWithWatermark.Width,
+                    SizeInBytes = byteArray.Length
+                };
             }
         }
 

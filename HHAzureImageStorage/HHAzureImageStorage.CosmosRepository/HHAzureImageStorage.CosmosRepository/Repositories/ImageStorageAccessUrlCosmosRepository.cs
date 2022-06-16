@@ -3,6 +3,7 @@ using HHAzureImageStorage.DAL.Interfaces;
 using HHAzureImageStorage.Domain.Entities;
 using HHAzureImageStorage.Domain.Enums;
 using Microsoft.Azure.Cosmos;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
@@ -12,8 +13,13 @@ namespace HHAzureImageStorage.CosmosRepository.Repositories
     public class ImageStorageAccessUrlCosmosRepository : IImageStorageAccessUrlRepository
     {
         private readonly IImageStorageAccessUrlCosmosContext _context;
+        private readonly ILogger _logger;
 
-        public ImageStorageAccessUrlCosmosRepository(IImageStorageAccessUrlCosmosContext context) => this._context = context;
+        public ImageStorageAccessUrlCosmosRepository(IImageStorageAccessUrlCosmosContext context, ILoggerFactory loggerFactory)
+        {
+            _context = context;
+            _logger = loggerFactory.CreateLogger<ImageStorageAccessUrlCosmosRepository>();
+        }
 
         public async Task<ImageStorageAccessUrl> AddAsync(ImageStorageAccessUrl imageEntity)
         {
@@ -35,6 +41,8 @@ namespace HHAzureImageStorage.CosmosRepository.Repositories
             }
             catch (CosmosException ex)
             {
+                _logger.LogError($"ImageStorageAccessUrlCosmosRepository|GetByImageIdAndImageVariant: Failed. Exception Message: {ex.Message} : Stack: {ex.StackTrace}");
+
                 return null;
             }
         }
