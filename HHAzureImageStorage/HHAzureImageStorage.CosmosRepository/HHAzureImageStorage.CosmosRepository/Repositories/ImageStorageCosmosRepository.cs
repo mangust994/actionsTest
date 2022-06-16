@@ -24,6 +24,11 @@ namespace HHAzureImageStorage.CosmosRepository.Repositories
 
         public async Task<ImageStorage> AddAsync(ImageStorage imageEntity)
         {
+            if (imageEntity == null)
+            {
+                return null;
+            }
+            
             PartitionKey partitionKey = new PartitionKey(imageEntity.imageId.ToString());
 
             ItemResponse<ImageStorage> itemAsync = await _context.Container.CreateItemAsync<ImageStorage>(imageEntity,

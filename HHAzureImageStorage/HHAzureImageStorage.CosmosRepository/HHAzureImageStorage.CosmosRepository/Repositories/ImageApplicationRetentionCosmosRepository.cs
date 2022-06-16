@@ -21,6 +21,11 @@ namespace HHAzureImageStorage.CosmosRepository.Repositories
 
         public async Task<ImageApplicationRetention> AddAsync(ImageApplicationRetention entity)
         {
+            if (entity == null)
+            {
+                return null;
+            }
+            
             PartitionKey partitionKey = new PartitionKey(entity.id.ToString());
 
             ItemResponse<ImageApplicationRetention> itemAsync = await _context
@@ -57,7 +62,7 @@ namespace HHAzureImageStorage.CosmosRepository.Repositories
             ItemResponse<ImageApplicationRetention> itemResponse = await this._context.Container
                 .DeleteItemAsync<ImageApplicationRetention>(id.ToString(), partitionKey);
 
-            return recordToDelete;
+            return itemResponse;
         }
 
         public async Task<ImageApplicationRetention> UpdateAsync(ImageApplicationRetention entity)

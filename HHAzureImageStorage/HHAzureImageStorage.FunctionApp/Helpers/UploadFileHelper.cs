@@ -63,12 +63,7 @@ namespace HHAzureImageStorage.FunctionApp.Helpers
             return name;
         }
 
-        public static string GetExtension(string path)
-        {
-            return Path.GetExtension(path);
-        }
-
-        public static bool IsExtension(string ex, string path)
+        private static bool IsExtension(string ex, string path)
         {
             var left = ex.Default();
             var right = Path.GetExtension(path).Default();
@@ -79,14 +74,9 @@ namespace HHAzureImageStorage.FunctionApp.Helpers
             return left.Is(right, true);
         }
 
-        public static string ChangeExtension(string path, string ex)
+        private static string ChangeExtension(string path, string ex)
         {
             return Path.ChangeExtension(path, ex);
-        }
-
-        public static string GetFileNameWithoutExtension(string path)
-        {
-            return Path.GetFileNameWithoutExtension(path);
         }
 
         private bool IsFileNotValid(FilePart file)

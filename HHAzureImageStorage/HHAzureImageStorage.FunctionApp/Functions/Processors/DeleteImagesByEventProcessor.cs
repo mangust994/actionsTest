@@ -15,6 +15,7 @@ namespace HHAzureImageStorage.FunctionApp.Functions.Processors
         public DeleteImagesByEventProcessor(ILoggerFactory loggerFactory, IImageService uploadImageService)
         {
             _logger = loggerFactory.CreateLogger<DeleteImagesByEventProcessor>();
+            _uploadImageService = uploadImageService;
         }
 
         [Function("DeleteImagesByEventProcessor")]

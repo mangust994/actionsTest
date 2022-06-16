@@ -810,7 +810,13 @@ namespace HHAzureImageStorage.BL.Services
 
         private async Task RemoveImageAsync(Guid imageId, ImageVariant imageVariant)
         {
-            var imageStorage = _imageStorageRepository.GetByImageIdAndImageVariant(imageId, imageVariant);
+            ImageStorage imageStorage = _imageStorageRepository
+                .GetByImageIdAndImageVariant(imageId, imageVariant);
+
+            if (imageStorage == null)
+            {
+                return;
+            }
 
             await RemoveImageAsync(imageStorage.BlobName, imageVariant);
             await RemoveImageDataFromDbAsync(imageId, imageVariant);

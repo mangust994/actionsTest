@@ -20,8 +20,6 @@ namespace HHAzureImageStorage.BL.Models.DTOs
 
         public bool ColorCorrectLevel { get; set; }
 
-        public string MimeType { get; set; }
-
         public string OriginalImageName { get; set; }
 
         public bool AutoThumbnails { get; set; }

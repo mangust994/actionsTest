@@ -6,7 +6,6 @@ namespace HHAzureImageStorage.BL.Services
 {
     public interface IQueueMessageService
     {
-        Task SendMessageAsync<T>(T data, string senderName);
         Task SendMessageDeleteImagesByEventAsync(int eventKey);
         Task SendMessageDeleteImagesByPhotographerAsync(int eventKey);
         Task SendMessageProcessThumbnailImagesAsync(GenerateThumbnailImagesDto data);        

@@ -6,6 +6,14 @@ namespace HHAzureImageStorage.BL.Utilities
 {
     public class FileHelper
     {
+        public const string SmallThumbnailPrefix = "S";
+        public const string SmallThumbnailWithWatermarkPrefix = "SW";
+        public const string MediumThumbnailPrefix = "M";
+        public const string MediumThumbnailWithWatermarkPrefix = "MW";
+        public const string LargeThumbnailPrefix = "L";
+        public const string LargeThumbnailWithWatermarkPrefix = "LW";
+        public const string ServicePrefix = "SRV";
+
         public static string GetFileNamePrefix(ImageVariant variant)
         {
             switch (variant)
@@ -14,19 +22,19 @@ namespace HHAzureImageStorage.BL.Utilities
                 case ImageVariant.Main:
                     return string.Empty;
                 case ImageVariant.SmallThumbnail:
-                    return "S";
+                    return SmallThumbnailPrefix;
                 case ImageVariant.SmallThumbnailWithWatermark:
-                    return "SW";
+                    return SmallThumbnailWithWatermarkPrefix;
                 case ImageVariant.MediumThumbnail:
-                    return "M";
+                    return MediumThumbnailPrefix;
                 case ImageVariant.MediumThumbnailWithWatermark:
-                    return "MW";
+                    return MediumThumbnailWithWatermarkPrefix;
                 case ImageVariant.LargeThumbnail:
-                    return "L";
+                    return LargeThumbnailPrefix;
                 case ImageVariant.LargeThumbnailWithWatermark:
-                    return "LW";
+                    return LargeThumbnailWithWatermarkPrefix;
                 case ImageVariant.Service:
-                    return "SRV";
+                    return ServicePrefix;
                 default:
                     return string.Empty;
             }
