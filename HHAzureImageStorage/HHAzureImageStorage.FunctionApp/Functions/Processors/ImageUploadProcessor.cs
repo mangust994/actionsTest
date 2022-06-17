@@ -74,7 +74,7 @@ namespace HHAzureImageStorage.FunctionApp.Functions.Processors
                 string fileName = FileHelper.GetFileName(imageId.ToString(), filePrefix, imageUpload.OriginalImageName);
 
                 AddImageDto addImageDto = AddImageDto.CreateInstance(imageId,
-                    fileStream, contentType, imageUpload.OriginalImageName, fileName, mainImageVariant, sourceApp);
+                    fileStream, contentType, imageUpload.OriginalImageName, fileName, mainImageVariant, sourceApp, _logger);
 
                 addImageDto.AutoThumbnails = imageUpload.AutoThumbnails;
                 addImageDto.WatermarkImageId = imageUpload.WatermarkImageId;

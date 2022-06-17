@@ -1,11 +1,17 @@
 ﻿using HHAzureImageStorage.BL.Models.DTOs;
+using HHAzureImageStorage.BL.Services;
 using HHAzureImageStorage.Domain.Entities;
 using HHAzureImageStorage.Domain.Enums;
+using Microsoft.Extensions.Logging;
+using Moq;
 
 namespace HHAzureImageStorage.Tests.UnitTests
 {
     public class AddImageDtoTests
     {
+        private readonly Mock<ILoggerFactory> _mockLoggerFactory;
+        private readonly Mock<ILogger<ImageService>> _logerMock;
+
         readonly Guid imageId = Guid.NewGuid();
         readonly string contentType = "image/jpeg";
         readonly string originalFileName = "TestOriginalFileName";
@@ -32,6 +38,22 @@ namespace HHAzureImageStorage.Tests.UnitTests
             addImageDto.WatermarkImageId = "WatermarkImageId";
             addImageDto.WatermarkMethod = "WatermarkMethod";
             addImageDto.AutoThumbnails = true;
+
+            _logerMock = new Mock<ILogger<ImageService>>();
+
+            _logerMock.Setup(x => x.Log(
+                        It.IsAny<LogLevel>(),
+                        It.IsAny<EventId>(),
+                        It.IsAny<It.IsAnyType>(),
+                        It.IsAny<Exception>(),
+                        (Func<It.IsAnyType, Exception, string>)It.IsAny<object>()));
+
+            _logerMock.Setup(m => m.IsEnabled(LogLevel.Information))
+                .Returns(true);
+
+            _mockLoggerFactory = new Mock<ILoggerFactory>();
+            _mockLoggerFactory.Setup(x => x.CreateLogger(It.IsAny<string>()))
+                .Returns(() => _logerMock.Object);
         }
 
         [Fact]
@@ -108,7 +130,7 @@ namespace HHAzureImageStorage.Tests.UnitTests
             using (MemoryStream fileStream = new MemoryStream(emptyImageByteArray))
             {
                 addImageDto = AddImageDto.CreateInstance(imageId,
-                            fileStream, contentType, originalFileName, fileName, imageVariant, sourceApp);
+                            fileStream, contentType, originalFileName, fileName, imageVariant, sourceApp, _logerMock.Object);
             }
 
             return addImageDto;

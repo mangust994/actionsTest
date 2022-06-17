@@ -70,7 +70,7 @@ namespace HHAzureImageStorage.FunctionApp.Functions.HttpTriggers
                 string fileName = FileHelper.GetFileName(imageId.ToString(), filePrefix, originalFileName);
 
                 AddImageDto addImageDto = AddImageDto.CreateInstance(imageId,
-                    fileStream, file.ContentType, originalFileName, fileName, imageVariant, sourceApp);
+                    fileStream, file.ContentType, originalFileName, fileName, imageVariant, sourceApp, _logger);
 
                 try
                 {
