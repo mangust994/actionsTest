@@ -1,6 +1,7 @@
 ﻿using HHAzureImageStorage.Domain.Entities;
 using HHAzureImageStorage.Domain.Enums;
 using ImageMagick;
+using Microsoft.Extensions.Logging;
 using System;
 using System.IO;
 
@@ -44,13 +45,18 @@ namespace HHAzureImageStorage.BL.Models.DTOs
 
         public int SizeInBytes { get; private set; }
 
-        public static AddImageDto CreateInstance(Guid imageId, Stream content, string contentType, string originalImageName, string fileName, ImageVariant imageVariant, ImageUploader sourceApp)
+        public static AddImageDto CreateInstance(Guid imageId, Stream content, string contentType, string originalImageName, string fileName, ImageVariant imageVariant, ImageUploader sourceApp, ILogger logger)
         {
+            logger.LogInformation($"AddImageDto: Started for {imageId} imageId");
+
             MagickImage magickImage = new MagickImage(content);
+
+            logger.LogInformation($"AddImageDto: Created MagickImage");
 
             magickImage.AutoOrient();
             magickImage.RemoveProfile("exif");
 
+            logger.LogInformation($"AddImageDto: Started new AddImageDto");
 
             var addImageDto = new AddImageDto()
             {
@@ -62,9 +68,21 @@ namespace HHAzureImageStorage.BL.Models.DTOs
                 ImageVariant = imageVariant,
                 SourceApplication = sourceApp,
                 WidthPixels = magickImage.Width,
-                HeightPixels = magickImage.Height,
-                SizeInBytes = magickImage.ToByteArray().Length
+                HeightPixels = magickImage.Height                
             };
+
+            logger.LogInformation($"AddImageDto: Finished new AddImageDto");
+
+            try
+            {
+                addImageDto.SizeInBytes = magickImage.ToByteArray().Length;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError($"AddImageDto: Failed first call magickImage.ToByteArray(). Exception Message: {ex.Message} : Stack: {ex.StackTrace}");
+
+                throw;
+            }
 
             addImageDto.HasTransparentAlphaLayer = magickImage.HasAlpha && !magickImage.IsOpaque;
 
@@ -72,6 +90,8 @@ namespace HHAzureImageStorage.BL.Models.DTOs
 
             if (Math.Min(magickImage.Width, magickImage.Height) > shortestPixelSize)
             {
+                logger.LogInformation($"AddImageDto: Started Resize the image");
+
                 // Resize the image
                 double scale = Math.Max(shortestPixelSize / (double)magickImage.Width, shortestPixelSize / (double)magickImage.Height);
 
@@ -80,12 +100,18 @@ namespace HHAzureImageStorage.BL.Models.DTOs
 
                 magickImage.Resize(w, h);
 
+                logger.LogInformation($"AddImageDto: Finished Resize the image");
+
                 var buffer = magickImage.ToByteArray();
+
+                logger.LogInformation($"AddImageDto: Finished second magickImage.ToByteArray();");
 
                 addImageDto.WidthPixels = magickImage.Width;
                 addImageDto.HeightPixels = magickImage.Height;
                 addImageDto.SizeInBytes = buffer.Length;
                 addImageDto.Content = new MemoryStream(buffer);
+
+                logger.LogInformation($"AddImageDto: Finished addImageDto.Content = new MemoryStream(buffer)");
             }           
 
             return addImageDto;

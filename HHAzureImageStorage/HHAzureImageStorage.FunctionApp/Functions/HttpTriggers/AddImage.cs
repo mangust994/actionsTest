@@ -122,7 +122,8 @@ namespace HHAzureImageStorage.FunctionApp.Functions.HttpTriggers
                     fileStream.Seek(0L, SeekOrigin.Begin);
 
                     AddImageDto addImageDto = AddImageDto.CreateInstance(imageId,
-                        fileStream, file.ContentType, originalFileName, fileName, imageVariant, sourceApp);
+                        fileStream, file.ContentType, originalFileName, fileName,
+                        imageVariant, sourceApp, _logger);
 
                     SetImageDataFromRequestModel(addImageDto, requestModel);
 
