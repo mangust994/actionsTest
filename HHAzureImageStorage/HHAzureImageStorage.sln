@@ -19,12 +19,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HHAzureImageStorage.Integra
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HHAzureImageStorage.Core", "HHAzureImageStorage.Core\HHAzureImageStorage.Core\HHAzureImageStorage.Core.csproj", "{C8D26073-0ACF-4822-98FF-B8B53BF0E574}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "HHAzureImageStorage.Tests", "HHAzureImageStorage.Tests\HHAzureImageStorage.Tests.csproj", "{4985A782-8D8D-41A3-8F95-7B8512B78056}"
-	ProjectSection(ProjectDependencies) = postProject
-		{C8D26073-0ACF-4822-98FF-B8B53BF0E574} = {C8D26073-0ACF-4822-98FF-B8B53BF0E574}
-		{FDA55563-14B6-4281-9570-A0A854432E0A} = {FDA55563-14B6-4281-9570-A0A854432E0A}
-	EndProjectSection
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -63,9 +57,6 @@ Global
 		{C8D26073-0ACF-4822-98FF-B8B53BF0E574}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{C8D26073-0ACF-4822-98FF-B8B53BF0E574}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{C8D26073-0ACF-4822-98FF-B8B53BF0E574}.Release|Any CPU.Build.0 = Release|Any CPU
-		{4985A782-8D8D-41A3-8F95-7B8512B78056}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{4985A782-8D8D-41A3-8F95-7B8512B78056}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{4985A782-8D8D-41A3-8F95-7B8512B78056}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
