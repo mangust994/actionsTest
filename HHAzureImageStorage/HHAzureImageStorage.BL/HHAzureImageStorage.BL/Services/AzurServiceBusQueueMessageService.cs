@@ -12,8 +12,20 @@ namespace HHAzureImageStorage.BL.Services
 
         public AzurServiceBusQueueMessageService()
         {
-            var connString = "Endpoint=sb://imagestorage.servicebus.windows.net/;SharedAccessKeyName=RootManageSharedAccessKey;SharedAccessKey=o5SDtrjizpSTsYkL47GxALbE2SHjvsQ0r+PdcEdHknI=";//Environment.GetEnvironmentVariable("SERVER_BUS_QUEUE_CON_STR");
-            client = new ServiceBusClient(connString);
+            var connString = Environment.GetEnvironmentVariable("SERVER_BUS_QUEUE_CON_STR");
+
+            var options = new ServiceBusClientOptions
+            {
+                TransportType = ServiceBusTransportType.AmqpTcp,
+                RetryOptions = new ServiceBusRetryOptions()
+                {
+                    Mode = ServiceBusRetryMode.Fixed,
+                    //Delay = TimeSpan.FromSeconds(3),
+                    //MaxRetries = 5
+                }
+            };
+            
+            client = new ServiceBusClient(connString, options);
         }
 
         public async Task SendMessageProcessThumbnailImagesAsync(GenerateThumbnailImagesDto data)
@@ -56,9 +68,15 @@ namespace HHAzureImageStorage.BL.Services
             var sender = client.CreateSender(senderName);
 
             var body = JsonSerializer.Serialize(data);
-            var message = new ServiceBusMessage(body);
+            var message = new ServiceBusMessage(body)
+            {
+                Subject = senderName // Label
+            };
+
+            message.ApplicationProperties.Add("Machine", Environment.MachineName);
 
             await sender.SendMessageAsync(message);
+            await sender.CloseAsync();
         }
     }
 }

@@ -74,7 +74,11 @@ namespace HHAzureImageStorage.FunctionApp.Functions.Processors
                 string fileName = FileHelper.GetFileName(imageId.ToString(), filePrefix, imageUpload.OriginalImageName);
 
                 AddImageDto addImageDto = AddImageDto.CreateInstance(imageId,
-                    fileStream, contentType, imageUpload.OriginalImageName, fileName, mainImageVariant, sourceApp, _logger);
+                    fileStream, contentType, imageUpload.OriginalImageName,
+                    fileName, mainImageVariant, sourceApp);
+
+                AddImageDto.SetImageData(imageId, fileStream, contentType,
+                        _logger, addImageDto);
 
                 addImageDto.AutoThumbnails = imageUpload.AutoThumbnails;
                 addImageDto.WatermarkImageId = imageUpload.WatermarkImageId;
@@ -143,7 +147,7 @@ namespace HHAzureImageStorage.FunctionApp.Functions.Processors
             hihRequestModel.HiResDownload = imageUpload.HiResDownload;
             hihRequestModel.CloudImageId = imageUpload.id.ToString();
             hihRequestModel.AutoThumbnails = imageUpload.AutoThumbnails;
-            hihRequestModel.SecurityKey = "ReplaceToSecurityKey";// TODO
+            hihRequestModel.SecurityKey = Environment.GetEnvironmentVariable("hhih_api_token");
 
             return hihRequestModel;
         }

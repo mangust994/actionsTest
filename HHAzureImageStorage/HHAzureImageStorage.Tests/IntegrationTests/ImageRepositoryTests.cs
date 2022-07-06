@@ -1,21 +1,13 @@
-﻿using HHAzureImageStorage.BL.Services;
-using HHAzureImageStorage.CosmosRepository.Containers;
-using HHAzureImageStorage.CosmosRepository.Interfaces;
-using HHAzureImageStorage.CosmosRepository.Repositories;
-using HHAzureImageStorage.CosmosRepository.Settings;
-using HHAzureImageStorage.DAL.Interfaces;
+﻿using HHAzureImageStorage.DAL.Interfaces;
 using HHAzureImageStorage.Domain.Entities;
-using HHAzureImageStorage.Tests.Extensions;
-using Microsoft.Azure.Cosmos;
-using Microsoft.Extensions.Logging;
-using Moq;
+using HHAzureImageStorage.Tests.Repositories;
 
 namespace HHAzureImageStorage.Tests.IntegrationTests
 {
     public class ImageRepositoryTests : IDisposable
     {
-        private readonly Mock<ILoggerFactory> _mockLoggerFactory;
-        private readonly Mock<ILogger<ImageService>> _logerMock;
+        //private readonly Mock<ILoggerFactory> _mockLoggerFactory;
+        //private readonly Mock<ILogger<ImageService>> _logerMock;
         private readonly Image _testImage;
         private readonly IImageRepository _imageRepository;
 
@@ -27,32 +19,31 @@ namespace HHAzureImageStorage.Tests.IntegrationTests
 
         public ImageRepositoryTests()
         {
-            _logerMock = new Mock<ILogger<ImageService>>();
+            //_logerMock = new Mock<ILogger<ImageService>>();
 
-            _logerMock.Setup(x => x.Log(
-                        It.IsAny<LogLevel>(),
-                        It.IsAny<EventId>(),
-                        It.IsAny<It.IsAnyType>(),
-                        It.IsAny<Exception>(),
-                        (Func<It.IsAnyType, Exception, string>)It.IsAny<object>()));
+            //_logerMock.Setup(x => x.Log(
+            //            It.IsAny<LogLevel>(),
+            //            It.IsAny<EventId>(),
+            //            It.IsAny<It.IsAnyType>(),
+            //            It.IsAny<Exception>(),
+            //            (Func<It.IsAnyType, Exception, string>)It.IsAny<object>()));
 
-            _logerMock.Setup(m => m.IsEnabled(LogLevel.Information))
-                .Returns(true);
+            //_logerMock.Setup(m => m.IsEnabled(LogLevel.Information))
+            //    .Returns(true);
 
-            _mockLoggerFactory = new Mock<ILoggerFactory>();
-            _mockLoggerFactory.Setup(x => x.CreateLogger(It.IsAny<string>()))
-                .Returns(() => _logerMock.Object);
+            //_mockLoggerFactory = new Mock<ILoggerFactory>();
+            //_mockLoggerFactory.Setup(x => x.CreateLogger(It.IsAny<string>()))
+            //    .Returns(() => _logerMock.Object);
 
-            CosmosSettings cosmosSettings = CosmosSettingsExtension.GetTestCosmosSettings();
+            //CosmosSettings cosmosSettings = CosmosSettingsExtension.GetTestCosmosSettings();
             
-            CosmosClient cosmosClient = new CosmosClient(cosmosSettings.EndPoint,
-                cosmosSettings.Key);
+            //CosmosClient cosmosClient = new CosmosClient(cosmosSettings.EndPoint,
+            //    cosmosSettings.Key);
 
-            IImageCosmosContext imageCosmosContext = new ImageCosmosContext(
-                cosmosSettings, cosmosClient);
+            //IImageCosmosContext imageCosmosContext = new ImageCosmosContext(
+            //    cosmosSettings, cosmosClient);
 
-            _imageRepository = new ImageCosmosRepository(
-                imageCosmosContext, _mockLoggerFactory.Object);
+            _imageRepository = new InMemoryImageRepository();
 
             _testImage = GetTestImage();
         }

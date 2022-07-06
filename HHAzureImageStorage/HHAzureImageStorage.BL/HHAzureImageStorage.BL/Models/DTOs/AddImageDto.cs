@@ -1,6 +1,6 @@
-﻿using HHAzureImageStorage.Domain.Entities;
+﻿using HHAzureImageStorage.BL.Utilities;
+using HHAzureImageStorage.Domain.Entities;
 using HHAzureImageStorage.Domain.Enums;
-using ImageMagick;
 using Microsoft.Extensions.Logging;
 using System;
 using System.IO;
@@ -43,21 +43,10 @@ namespace HHAzureImageStorage.BL.Models.DTOs
 
         public int HeightPixels { get; private set; }
 
-        public int SizeInBytes { get; private set; }
+        public long SizeInBytes { get; private set; }
 
-        public static AddImageDto CreateInstance(Guid imageId, Stream content, string contentType, string originalImageName, string fileName, ImageVariant imageVariant, ImageUploader sourceApp, ILogger logger)
+        public static AddImageDto CreateInstance(Guid imageId, Stream content, string contentType, string originalImageName, string fileName, ImageVariant imageVariant, ImageUploader sourceApp)
         {
-            logger.LogInformation($"AddImageDto: Started for {imageId} imageId");
-
-            MagickImage magickImage = new MagickImage(content);
-
-            logger.LogInformation($"AddImageDto: Created MagickImage");
-
-            magickImage.AutoOrient();
-            magickImage.RemoveProfile("exif");
-
-            logger.LogInformation($"AddImageDto: Started new AddImageDto");
-
             var addImageDto = new AddImageDto()
             {
                 ImageId = imageId,
@@ -66,55 +55,38 @@ namespace HHAzureImageStorage.BL.Models.DTOs
                 OriginalImageName = originalImageName,
                 Name = fileName,
                 ImageVariant = imageVariant,
-                SourceApplication = sourceApp,
-                WidthPixels = magickImage.Width,
-                HeightPixels = magickImage.Height                
+                SourceApplication = sourceApp
             };
 
-            logger.LogInformation($"AddImageDto: Finished new AddImageDto");
+            return addImageDto;
+        }
+
+        public static void SetImageData(Guid imageId, Stream content, string contentType, ILogger logger, AddImageDto addImageDto)
+        {
+            int.TryParse(Environment.GetEnvironmentVariable("SHORTEST_PIXEL_SIZE"), out int shortestPixelSize);
+
+            var imageData = ImageSharpResizer.ProcessUploadedImageAndGetData(content, shortestPixelSize, contentType);
+
+            addImageDto.HeightPixels = imageData.HeightPixels;
+            addImageDto.WidthPixels = imageData.WidthPixels;
+            addImageDto.SizeInBytes = imageData.SizeInBytes;
+            addImageDto.Content = imageData.ImageStream;
+
+            logger.LogInformation($"AddImage: Started Resize for MagickImage {imageId} imageId");
 
             try
             {
-                addImageDto.SizeInBytes = magickImage.ToByteArray().Length;
+                logger.LogInformation($"AddImageDto: Started new MagickImage");
+
+                addImageDto.HasTransparentAlphaLayer = ImageResizerMagickImage
+                    .HasImageTransparentAlphaLayer(imageData.ImageStreamForMagicImage == null ? content : imageData.ImageStreamForMagicImage);
+
+                logger.LogInformation($"AddImageDto: Created MagickImage");
             }
             catch (Exception ex)
             {
                 logger.LogError($"AddImageDto: Failed first call magickImage.ToByteArray(). Exception Message: {ex.Message} : Stack: {ex.StackTrace}");
-
-                throw;
             }
-
-            addImageDto.HasTransparentAlphaLayer = magickImage.HasAlpha && !magickImage.IsOpaque;
-
-            int.TryParse(Environment.GetEnvironmentVariable("SHORTEST_PIXEL_SIZE"), out int shortestPixelSize);
-
-            if (Math.Min(magickImage.Width, magickImage.Height) > shortestPixelSize)
-            {
-                logger.LogInformation($"AddImageDto: Started Resize the image");
-
-                // Resize the image
-                double scale = Math.Max(shortestPixelSize / (double)magickImage.Width, shortestPixelSize / (double)magickImage.Height);
-
-                int w = (int)(magickImage.Width * scale);
-                int h = (int)(magickImage.Height * scale);
-
-                magickImage.Resize(w, h);
-
-                logger.LogInformation($"AddImageDto: Finished Resize the image");
-
-                var buffer = magickImage.ToByteArray();
-
-                logger.LogInformation($"AddImageDto: Finished second magickImage.ToByteArray();");
-
-                addImageDto.WidthPixels = magickImage.Width;
-                addImageDto.HeightPixels = magickImage.Height;
-                addImageDto.SizeInBytes = buffer.Length;
-                addImageDto.Content = new MemoryStream(buffer);
-
-                logger.LogInformation($"AddImageDto: Finished addImageDto.Content = new MemoryStream(buffer)");
-            }           
-
-            return addImageDto;
         }
 
         public Image CreateImageEntity() => new()
@@ -133,7 +105,7 @@ namespace HHAzureImageStorage.BL.Models.DTOs
             WidthPixels = WidthPixels,
             HeightPixels = HeightPixels,
             SizeInBytes = SizeInBytes
-        };        
+        };
 
         public ImageStorage CreateImageStorageEntity(string storageAccountName, string bloabContainerName) => new()
         {

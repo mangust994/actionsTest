@@ -46,7 +46,8 @@ namespace HHAzureImageStorage.FunctionApp
 
                     services.AddAzureAppConfiguration();
 
-                    services.AddSingleton<IImageResizer, ImageResizerMagickImage>();
+                    //services.AddSingleton<IImageResizer, ImageResizerMagickImage>();//IImageResizer
+                    services.AddSingleton<IImageResizer, ImageSharpResizer>();
                     services.AddSingleton<IUploadFileValidator, UploadFileValidator>();
                     services.AddSingleton<IUploadFileHelper, UploadFileHelper>();
                     services.AddSingleton<IHttpHelper, HttpHelper>();

@@ -24,8 +24,8 @@ namespace HHAzureImageStorage.BL.Services
         Task RemoveUploadedImageAsync(Guid imageId, string name, ImageVariant imageVariant);
         Task SetImageReadyStatus(Guid imageId, ImageVariant imageVariant);
         Task ThumbnailImagesProcess(GenerateThumbnailImagesDto generateThumbnailImagesDto);
-        Task UpdateProcessedImagesAsync(AddImageDto addImageDto, AddImageInfoResponseModel hhihAddImageResponse);
+        Task UpdateProcessedImagesAsync(Guid imageId, ImageVariant imageVariant, AddImageInfoResponseModel hhihAddImageResponse);
         Task UploadImageProcessAsync(AddImageDto addImageDto);
-        Task UploadWatermarkImageProcess(AddImageDto addImageDto);
+        Task UploadServiceImageProcess(AddImageDto addImageDto);
     }
 }

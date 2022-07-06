@@ -117,13 +117,23 @@ namespace HHAzureImageStorage.FunctionApp.Functions.HttpTriggers
             {
                 using (MemoryStream fileStream = new MemoryStream())
                 {
+                    _logger.LogInformation($"AddImage: Started file.Data.CopyToAsync(fileStream) for {imageId} imageId");
+
                     var file = formData.Files[0];
                     await file.Data.CopyToAsync(fileStream);
                     fileStream.Seek(0L, SeekOrigin.Begin);
+                    string contentType = file.ContentType;
+
+                    _logger.LogInformation($"AddImage: Finished file.Data.CopyToAsync(fileStream) for {imageId} imageId");
 
                     AddImageDto addImageDto = AddImageDto.CreateInstance(imageId,
-                        fileStream, file.ContentType, originalFileName, fileName,
-                        imageVariant, sourceApp, _logger);
+                        fileStream, contentType, originalFileName, fileName,
+                        imageVariant, sourceApp);
+
+                    AddImageDto.SetImageData(imageId, fileStream, contentType,
+                        _logger, addImageDto);
+
+                    _logger.LogInformation($"AddImage: SetImageDataFromRequestModel for {imageId} imageId");
 
                     SetImageDataFromRequestModel(addImageDto, requestModel);
 
@@ -149,7 +159,7 @@ namespace HHAzureImageStorage.FunctionApp.Functions.HttpTriggers
                     {
                         _logger.LogInformation($"AddImage: Started UpdateProcessedImagesAsync for {imageId} imageId");
 
-                        await _uploadImageService.UpdateProcessedImagesAsync(addImageDto, hhihAddImageResponse);
+                        await _uploadImageService.UpdateProcessedImagesAsync(addImageDto.ImageId, addImageDto.ImageVariant, hhihAddImageResponse);
 
                         _logger.LogInformation($"AddImage: Finished UpdateProcessedImagesAsync for {imageId} imageId");
 

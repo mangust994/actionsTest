@@ -1,6 +1,6 @@
 ﻿{
-  "COSMOS_END_POINT": "https://imagedbaccount.documents.azure.com:443/",
-  "COSMOS_KEY": "BvLeu2zUXHQngm3RzLXbWwgMHsT6TWOFRdgDjBZB3GOKmzLNnd9ixXorwKxdW5Ozx60vbgrnZq1L1n7IO7ojvg==",
+  "COSMOS_END_POINT": "***REPLACE TO END POINT***",
+  "COSMOS_KEY": "***REPLACE TO KEY***",
   "COSMOS_DatabaseName": "ImageStore",
   "COSMOS_ImageContainerName": "Image",
   "COSMOS_ImageStorageContainerName": "ImageStorage",

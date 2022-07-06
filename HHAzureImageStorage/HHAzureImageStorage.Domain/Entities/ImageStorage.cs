@@ -28,6 +28,6 @@ namespace HHAzureImageStorage.Domain.Entities
 
         public int HeightPixels { get; set; }
 
-        public int SizeInBytes { get; set; }
+        public long SizeInBytes { get; set; }
     }
 }

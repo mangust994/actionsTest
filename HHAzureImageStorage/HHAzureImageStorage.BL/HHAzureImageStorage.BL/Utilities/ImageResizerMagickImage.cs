@@ -9,7 +9,7 @@ namespace HHAzureImageStorage.BL.Utilities
 {
     public class ImageResizerMagickImage : IImageResizer
     {
-        public ImageResizeResponse Resize(byte[] sourceArray, int longestPixelSize)
+        public ImageResizeResponse Resize(byte[] sourceArray, int longestPixelSize, string contentType)
         {
             using (IMagickImage thumbAsMagickImage = GetThumbAsMagickImage(sourceArray, longestPixelSize))
             {
@@ -26,7 +26,7 @@ namespace HHAzureImageStorage.BL.Utilities
             }
         }
 
-        public ImageResizeResponse ResizeWithWatermark(byte[] sourceArray, byte[] watermarkArray, int longestPixelSize, WaterMarkType watermarkType)
+        public ImageResizeResponse ResizeWithWatermark(byte[] sourceArray, byte[] watermarkArray, int longestPixelSize, WaterMarkType watermarkType, string contentType)
         {
 
             using (IMagickImage thumbAsMagickImage = GetThumbAsMagickImage(sourceArray, longestPixelSize))
@@ -45,6 +45,17 @@ namespace HHAzureImageStorage.BL.Utilities
                     SizeInBytes = byteArray.Length
                 };
             }
+        }
+
+        public static bool HasImageTransparentAlphaLayer(Stream imageStream)
+        {
+            using(MagickImage magickImage = new MagickImage(imageStream))
+            {
+                magickImage.AutoOrient();
+                magickImage.RemoveProfile("exif");
+
+                return magickImage.HasAlpha && !magickImage.IsOpaque;
+            }            
         }
 
         private IMagickImage GetThumbAsMagickImage(byte[] sourceArray, int longestPixelSize)
@@ -110,6 +121,16 @@ namespace HHAzureImageStorage.BL.Utilities
                 }
             }
             return source;
+        }
+
+        public ProcessUploadedImageResponse ProcessUploadedImageAndGetData(byte[] inputImageBytes, int shortestPixelSize, string contentType)
+        {
+            throw new NotImplementedException();
+        }
+
+        public ProcessUploadedImageResponse ProcessUploadedImageAndGetData(Stream inputImageStream, int shortestPixelSize, string contentType)
+        {
+            throw new NotImplementedException();
         }
     }
 }

@@ -1,11 +1,6 @@
-﻿using HHAzureImageStorage.CosmosRepository.Containers;
-using HHAzureImageStorage.CosmosRepository.Interfaces;
-using HHAzureImageStorage.CosmosRepository.Repositories;
-using HHAzureImageStorage.CosmosRepository.Settings;
-using HHAzureImageStorage.DAL.Interfaces;
+﻿using HHAzureImageStorage.DAL.Interfaces;
 using HHAzureImageStorage.Domain.Entities;
-using HHAzureImageStorage.Tests.Extensions;
-using Microsoft.Azure.Cosmos;
+using HHAzureImageStorage.Tests.Repositories;
 
 namespace HHAzureImageStorage.Tests.IntegrationTests
 {
@@ -20,15 +15,15 @@ namespace HHAzureImageStorage.Tests.IntegrationTests
 
         public ImageUploadRepositoryTests()
         {
-            CosmosSettings cosmosSettings = CosmosSettingsExtension.GetTestCosmosSettings();
+            //CosmosSettings cosmosSettings = CosmosSettingsExtension.GetTestCosmosSettings();
 
-            CosmosClient cosmosClient = new CosmosClient(cosmosSettings.EndPoint,
-                cosmosSettings.Key);
+            //CosmosClient cosmosClient = new CosmosClient(cosmosSettings.EndPoint,
+            //    cosmosSettings.Key);
 
-            IImageUploadCosmosContext imageCosmosContext = new ImageUploadCosmosContext(
-                cosmosSettings, cosmosClient);
+            //IImageUploadCosmosContext imageCosmosContext = new ImageUploadCosmosContext(
+            //    cosmosSettings, cosmosClient);
 
-            _repository = new ImageUploadCosmosRepository(imageCosmosContext);
+            _repository = new InMemoryImageUploadRepository();
 
             _testItem = GetTestItem();
         }
@@ -145,9 +140,9 @@ namespace HHAzureImageStorage.Tests.IntegrationTests
 
         public void Dispose()
         {
-            var image = _repository.RemoveAsync(_testItem.id).Result;
+            var image = _repository.RemoveAsync(_testItem.id);
 
-            Assert.Null(image);
+            Assert.Null(image.Result);
         }
     }
 }

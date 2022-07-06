@@ -10,8 +10,10 @@ using HHAzureImageStorage.Domain.Entities;
 using HHAzureImageStorage.Domain.Enums;
 using HHAzureImageStorage.IntegrationHHIH.Models;
 using Microsoft.Extensions.Logging;
+using SkiaSharp;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 
@@ -204,15 +206,15 @@ namespace HHAzureImageStorage.BL.Services
             _logger.LogInformation($"ImageService| Finished RemoveImagesByStudioKeyAsync for {studioKey} studioKey");
         }
 
-        public async Task UpdateProcessedImagesAsync(AddImageDto addImageDto, AddImageInfoResponseModel hhihAddImageResponse)
+        public async Task UpdateProcessedImagesAsync(Guid imageId, ImageVariant imageVariant, AddImageInfoResponseModel hhihAddImageResponse)
         {
-            _logger.LogInformation($"ImageService| Started UpdateProcessedImagesAsync for {addImageDto.ImageId} imageId");
+            _logger.LogInformation($"ImageService| Started UpdateProcessedImagesAsync for {imageId} imageId");
 
             try
             {
-                var image = await _imageRepository.GetByIdAsnc(addImageDto.ImageId);
-                var imageStorage = _imageStorageRepository.GetByImageIdAndImageVariant(addImageDto.ImageId, addImageDto.ImageVariant);
-                var imageApplicationRetention = await _imageApplicationRetentionRepository.GetByIdAsnc(addImageDto.ImageId);
+                var image = await _imageRepository.GetByIdAsnc(imageId);
+                var imageStorage = _imageStorageRepository.GetByImageIdAndImageVariant(imageId, imageVariant);
+                var imageApplicationRetention = await _imageApplicationRetentionRepository.GetByIdAsnc(imageId);
 
                 image.WatermarkMethod = hhihAddImageResponse.WatermarkMethod;
                 image.WatermarkImageId = hhihAddImageResponse.WatermarkImageId;
@@ -222,6 +224,7 @@ namespace HHAzureImageStorage.BL.Services
                 imageApplicationRetention.expirationDate = hhihAddImageResponse.ExpirationDate;
 
                 imageStorage.Status = ImageStatus.Ready;
+                string fileName = imageStorage.BlobName;
 
                 await _imageRepository.UpdateAsync(image);
                 await _imageStorageRepository.UpdateAsync(imageStorage);
@@ -231,16 +234,16 @@ namespace HHAzureImageStorage.BL.Services
             {
                 _logger.LogError($"ImageService|UpdateProcessedImagesAsync: Failed. Exception Message: {ex.Message} : Stack: {ex.StackTrace}");
 
-                await RemoveImageDataFromDbAsync(addImageDto.ImageId, addImageDto.ImageVariant);
-                await RemoveImageAsync(addImageDto.Name, addImageDto.ImageVariant);
+                //await RemoveImageDataFromDbAsync(imageId, imageVariant);
+                //await RemoveImageAsync(fileName, imageVariant);
 
                 throw;
             }
 
-            _logger.LogInformation($"ImageService| Finished UpdateProcessedImagesAsync for {addImageDto.ImageId} imageId");
+            _logger.LogInformation($"ImageService| Finished UpdateProcessedImagesAsync for {imageId} imageId");
         }
 
-        public async Task UploadWatermarkImageProcess(AddImageDto addImageDto)
+        public async Task UploadServiceImageProcess(AddImageDto addImageDto)
         {
             _logger.LogInformation($"ImageService| Started UploadWatermarkImageProcess for {addImageDto.ImageId} imageId");
 
@@ -267,13 +270,17 @@ namespace HHAzureImageStorage.BL.Services
 
         public async Task ThumbnailImagesProcess(GenerateThumbnailImagesDto generateThumbnailImagesDto)
         {
-            _logger.LogInformation($"ImageService| Started ThumbnailImagesProcess for {generateThumbnailImagesDto.ImageId} imageId");
+            _logger.LogInformation($"ImageService|ThumbnailImagesProcess Started ThumbnailImagesProcess for {generateThumbnailImagesDto.ImageId} imageId");
 
             WaterMarkType watermarkType = WaterMarkType.No;
 
             byte[] sourceArray = await _storageProcessor
                 .StorageFileBytesGetAsync(generateThumbnailImagesDto.FileName, ImageVariant.Main);
             byte[] watermarkArray = null;
+
+            _logger.LogInformation($"ImageService|ThumbnailImagesProcess: sourceArray Length - {sourceArray.Length}");
+
+            sourceArray = ResizeBigImage(generateThumbnailImagesDto.ContentType, sourceArray);
 
             if (generateThumbnailImagesDto.AutoThumbnails && !string.IsNullOrEmpty(generateThumbnailImagesDto.WatermarkImageId))
             {
@@ -304,13 +311,15 @@ namespace HHAzureImageStorage.BL.Services
 
             List<ImageStorageSize> imageSizes = _imageStorageSizeRepository.GetThumbSizes();
 
-            foreach (var size in imageSizes)
+            foreach (var size in imageSizes.OrderBy(x => x.sequence))
             {
                 ImageVariant imageVariant = size.imageVariantId;
 
+                _logger.LogInformation($"ImageService| Started ThumbnailImagesProcess for {generateThumbnailImagesDto.ImageId} imageId and {imageVariant}");
+
                 bool isWithWatermarkType = ImageVariantHelper.IsWithWatermark(imageVariant);
 
-                if (isWithWatermarkType && (!generateThumbnailImagesDto.AutoThumbnails 
+                if (isWithWatermarkType && (!generateThumbnailImagesDto.AutoThumbnails
                     || watermarkArray == null || watermarkType == WaterMarkType.No))
                 {
                     _logger.LogInformation($"GenerateThumbnailImages: Skip watermark {imageVariant}. The AutoThumbnails is {generateThumbnailImagesDto.AutoThumbnails} and WatermarkMethod {generateThumbnailImagesDto.WatermarkMethod} for {imageVariant} image Variant");
@@ -346,8 +355,8 @@ namespace HHAzureImageStorage.BL.Services
                 }
 
                 ImageResizeResponse resizeResponse = isWithWatermarkType && watermarkType != WaterMarkType.No ?
-                    _imageResizer.ResizeWithWatermark(sourceArray, watermarkArray, size.LongestPixelSize, watermarkType)
-                    : _imageResizer.Resize(sourceArray, size.LongestPixelSize);
+                    _imageResizer.ResizeWithWatermark(sourceArray, watermarkArray, size.LongestPixelSize, watermarkType, generateThumbnailImagesDto.ContentType)
+                    : _imageResizer.Resize(sourceArray, size.LongestPixelSize, generateThumbnailImagesDto.ContentType);
 
                 try
                 {
@@ -373,11 +382,13 @@ namespace HHAzureImageStorage.BL.Services
                     throw;
                 }
 
-                resizeResponse.ResizedStream.Dispose();
+                _logger.LogInformation($"ImageService| Finished ThumbnailImagesProcess for {generateThumbnailImagesDto.ImageId} imageId and {imageVariant}");
+
+                resizeResponse?.ResizedStream.Dispose();
             }
 
             _logger.LogInformation($"ImageService| Finished ThumbnailImagesProcess for {generateThumbnailImagesDto.ImageId} imageId");
-        }
+        }        
 
         public async Task RebuildThumbnailsWithWatermarkAsync(RebuildThumbnailsWithWatermarkDto modelDto)
         {
@@ -434,6 +445,8 @@ namespace HHAzureImageStorage.BL.Services
                 .StorageFileBytesGetAsync(generateThumbnailImagesDto.FileName, ImageVariant.Main);
             byte[] watermarkArray = null;
 
+            sourceArray = ResizeBigImage(generateThumbnailImagesDto.ContentType, sourceArray);
+
             if (generateThumbnailImagesDto.AutoThumbnails && !string.IsNullOrEmpty(generateThumbnailImagesDto.WatermarkImageId))
             {
                 var imageVariant = ImageVariant.Service;
@@ -464,7 +477,7 @@ namespace HHAzureImageStorage.BL.Services
 
             List<ImageStorageSize> imageSizes = _imageStorageSizeRepository.GetWatermarkThumbSizes();
 
-            foreach (var size in imageSizes)
+            foreach (var size in imageSizes.OrderBy(x => x.sequence))
             {
                 ImageVariant imageVariant = size.imageVariantId;
 
@@ -522,8 +535,8 @@ namespace HHAzureImageStorage.BL.Services
                 _logger.LogInformation($"ImageService|RebuildWatermarkThumbnailsProcess: Started ResizeWithWatermark for {imageVariant.ToString()} and {generateThumbnailImagesDto.ImageId} imageId");
 
                 ImageResizeResponse resizeResponse = _imageResizer
-                    .ResizeWithWatermark(sourceArray, watermarkArray, size.LongestPixelSize, watermarkType);
-                
+                    .ResizeWithWatermark(sourceArray, watermarkArray, size.LongestPixelSize, watermarkType, generateThumbnailImagesDto.ContentType);
+
                 try
                 {
                     _logger.LogInformation($"ImageService|RebuildWatermarkThumbnailsProcess: Started Upload to storage of {imageStorageEntity.BlobName}");
@@ -567,7 +580,7 @@ namespace HHAzureImageStorage.BL.Services
             }
 
             _logger.LogInformation($"ImageService| Finished RebuildWatermarkThumbnailsProcess");
-        }        
+        }
 
         public string GetCreateAccessUrl(string bloabName)
         {
@@ -813,10 +826,10 @@ namespace HHAzureImageStorage.BL.Services
             ImageStorage imageStorage = _imageStorageRepository
                 .GetByImageIdAndImageVariant(imageId, imageVariant);
 
-            if (imageStorage == null)
-            {
-                return;
-            }
+            //if (imageStorage == null)
+            //{
+            //    return;
+            //}
 
             await RemoveImageAsync(imageStorage.BlobName, imageVariant);
             await RemoveImageDataFromDbAsync(imageId, imageVariant);
@@ -828,6 +841,30 @@ namespace HHAzureImageStorage.BL.Services
             {
                 await RemoveImageByIdAsync(image.id);
             }
+        }
+
+        private byte[] ResizeBigImage(string contentType, byte[] sourceArray)
+        {
+            try
+            {
+                if (sourceArray == null || sourceArray.Length == 0)
+                {
+                    return sourceArray;
+                }
+                
+                var shortestPixelSize = 1024;
+
+                var imageData = _imageResizer
+                    .ProcessUploadedImageAndGetData(sourceArray, shortestPixelSize, contentType);
+
+                return imageData.ImageStream.ToArray();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError($"ImageService|ResizeBigImage SKImage Error. {ex.Message}", ex);
+            }
+
+            return sourceArray;
         }
     }
 }

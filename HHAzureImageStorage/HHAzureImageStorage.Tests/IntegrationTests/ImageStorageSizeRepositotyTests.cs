@@ -1,11 +1,6 @@
-﻿using HHAzureImageStorage.CosmosRepository.Containers;
-using HHAzureImageStorage.CosmosRepository.Interfaces;
-using HHAzureImageStorage.CosmosRepository.Repositories;
-using HHAzureImageStorage.CosmosRepository.Settings;
-using HHAzureImageStorage.DAL.Interfaces;
+﻿using HHAzureImageStorage.DAL.Interfaces;
 using HHAzureImageStorage.Domain.Entities;
-using HHAzureImageStorage.Tests.Extensions;
-using Microsoft.Azure.Cosmos;
+using HHAzureImageStorage.Tests.Repositories;
 
 namespace HHAzureImageStorage.Tests.IntegrationTests
 {
@@ -15,15 +10,15 @@ namespace HHAzureImageStorage.Tests.IntegrationTests
 
         public ImageStorageSizeRepositotyTests()
         {
-            CosmosSettings cosmosSettings = CosmosSettingsExtension.GetTestCosmosSettings();
+            //CosmosSettings cosmosSettings = CosmosSettingsExtension.GetTestCosmosSettings();
 
-            CosmosClient cosmosClient = new CosmosClient(cosmosSettings.EndPoint,
-                cosmosSettings.Key);
+            //CosmosClient cosmosClient = new CosmosClient(cosmosSettings.EndPoint,
+            //    cosmosSettings.Key);
 
-            IImageStorageSizeCosmosContext imageCosmosContext = new ImageStorageSizeCosmosContext(
-                cosmosSettings, cosmosClient);
+            //IImageStorageSizeCosmosContext imageCosmosContext = new ImageStorageSizeCosmosContext(
+            //    cosmosSettings, cosmosClient);
 
-            _storageRepository = new ImageStorageSizeCosmosRepositoty(imageCosmosContext);
+            _storageRepository = new InMemoryImageStorageSizeRepositoty();
         }        
 
         [Fact]

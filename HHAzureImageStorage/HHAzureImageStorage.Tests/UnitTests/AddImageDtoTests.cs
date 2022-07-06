@@ -31,14 +31,6 @@ namespace HHAzureImageStorage.Tests.UnitTests
 
         public AddImageDtoTests()
         {
-            addImageDto = CreateInstance();
-
-            addImageDto.HHIHEventKey = 777;
-            addImageDto.HHIHPhotographerKey = 1;
-            addImageDto.WatermarkImageId = "WatermarkImageId";
-            addImageDto.WatermarkMethod = "WatermarkMethod";
-            addImageDto.AutoThumbnails = true;
-
             _logerMock = new Mock<ILogger<ImageService>>();
 
             _logerMock.Setup(x => x.Log(
@@ -54,6 +46,14 @@ namespace HHAzureImageStorage.Tests.UnitTests
             _mockLoggerFactory = new Mock<ILoggerFactory>();
             _mockLoggerFactory.Setup(x => x.CreateLogger(It.IsAny<string>()))
                 .Returns(() => _logerMock.Object);
+
+            addImageDto = CreateInstance();
+
+            addImageDto.HHIHEventKey = 777;
+            addImageDto.HHIHPhotographerKey = 1;
+            addImageDto.WatermarkImageId = "WatermarkImageId";
+            addImageDto.WatermarkMethod = "WatermarkMethod";
+            addImageDto.AutoThumbnails = true;
         }
 
         [Fact]
@@ -69,7 +69,7 @@ namespace HHAzureImageStorage.Tests.UnitTests
             Assert.NotNull(addImageDto.Content);
             Assert.Equal(1, addImageDto.HeightPixels);
             Assert.Equal(1, addImageDto.WidthPixels);
-            Assert.Equal(43, addImageDto.SizeInBytes);
+            Assert.Equal(615, addImageDto.SizeInBytes);
             Assert.False(addImageDto.HasTransparentAlphaLayer);
         }
 
@@ -130,7 +130,11 @@ namespace HHAzureImageStorage.Tests.UnitTests
             using (MemoryStream fileStream = new MemoryStream(emptyImageByteArray))
             {
                 addImageDto = AddImageDto.CreateInstance(imageId,
-                            fileStream, contentType, originalFileName, fileName, imageVariant, sourceApp, _logerMock.Object);
+                            fileStream, contentType, originalFileName,
+                            fileName, imageVariant, sourceApp);
+
+                AddImageDto.SetImageData(imageId, fileStream, contentType,
+                        _logerMock.Object, addImageDto);
             }
 
             return addImageDto;
