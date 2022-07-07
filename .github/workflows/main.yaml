@@ -19,7 +19,7 @@ jobs:
         dotnet-version: '6.0'
 
     - name: Build with dotnet
-      run: dotnet build HHAzureImageStorage.sln --configuration Release
+      run: dotnet build HHAzureImageStorage.sln --configuration Release --arch win-x64
       working-directory: HHAzureImageStorage
 
     - name: dotnet publish
