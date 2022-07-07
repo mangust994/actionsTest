@@ -6,50 +6,41 @@ on:
       - master
   workflow_dispatch:
 
+env:
+ AZURE_FUNCTIONAPP_NAME: 'ImageFunctionTTEST'
+ AZURE_FUNCTIONAPP_PACKAGE_PATH: '.' # set this to the path to your web app project, defaults to the repository root
+ DOTNET_VERSION: '6.0' # set this to the dotnet version to use
+ SLOT_NAME: 'Production'
+ WORKING_DIRECTORY: 'HHAzureImageStorage'
+ BUILD_ENVIRONMENT: 'Release'
+
+
 jobs:
-  build:
-    runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v2
-
-    - name: Set up .NET Core
-      uses: actions/setup-dotnet@v1
-      with:
-        dotnet-version: '6.0'
-
-    - name: Build with dotnet
-      run: dotnet build HHAzureImageStorage.sln --configuration Release --arch win-x64
-      working-directory: HHAzureImageStorage
-
-    - name: dotnet publish
-      run: dotnet publish HHAzureImageStorage.sln -c Release -o ${{env.DOTNET_ROOT}}/myapp
-      working-directory: HHAzureImageStorage
-
-    - name: Upload artifact for deployment job
-      uses: actions/upload-artifact@v2
-      with:
-        name: .net-app
-        path: ${{env.DOTNET_ROOT}}/myapp
-
-  deploy:
+  build-and-deploy:
     runs-on: windows-latest
-    needs: build
-    environment:
-      name: 'production'
-      url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
-
     steps:
-    - name: Download artifact from build job
-      uses: actions/download-artifact@v2
-      with:
-        name: .net-app
+      - name: 'Checkout GitHub Action'
+        uses: actions/checkout@v2
 
-    - name: Deploy to Azure Web App
-      id: deploy-to-webapp
-      uses: azure/webapps-deploy@v2
-      with:
-        app-name: 'ImageFunctionTTEST'
-        slot-name: 'production'
-        publish-profile: ${{ secrets.AZURE_PUBLISH_PROFILE_MAINFUNC }}
-        package: .
+      - name: Setup DotNet ${{ env.DOTNET_VERSION }} Environment
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: 'Resolve Dependencies then Build and run tests'
+        shell: pwsh
+        run: |
+          pushd './${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}'
+          dotnet build --configuration ${{ env.BUILD_ENVIRONMENT}} --output ./output          
+          dotnet test
+          popd          
+        working-directory: ${{ env.WORKING_DIRECTORY}}
+          
+      - name: 'Deploy to azure'
+        uses: Azure/functions-action@v1
+        id: fa
+        with:
+          app-name: ${{ env.AZURE_FUNCTIONAPP_NAME }}
+          slot-name: ${{ env.SLOT_NAME }}
+          publish-profile: ${{ secrets.AZURE_PUBLISH_PROFILE_MAINFUNC }}
+          package: .
