@@ -21,5 +21,7 @@
         public string ImageStorageSizeContainerName { get; set; }
 
         public string ImageUploadContainerName { get; set; }
+
+        public string ProcessThumbTrysCountContainerName { get; set; }
     }
 }

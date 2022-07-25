@@ -31,6 +31,7 @@ namespace HHAzureImageStorage.CosmosRepository
             services.AddSingleton<IImageApplicationRetentionCosmosContext, ImageApplicationRetentionCosmosContext>();
             services.AddSingleton<IImageStorageSizeCosmosContext, ImageStorageSizeCosmosContext>();
             services.AddSingleton<IImageUploadCosmosContext, ImageUploadCosmosContext>();
+            services.AddSingleton<IProcessThumbTrysCountCosmosContext, ProcessThumbTrysCountCosmosContext>();
 
             services.AddScoped<IImageRepository, ImageCosmosRepository>();
             services.AddScoped<IImageStorageRepository, ImageStorageCosmosRepository>();
@@ -38,6 +39,7 @@ namespace HHAzureImageStorage.CosmosRepository
             services.AddScoped<IImageApplicationRetentionRepository, ImageApplicationRetentionCosmosRepository>();
             services.AddScoped<IImageStorageSizeRepositoty, ImageStorageSizeCosmosRepositoty>();
             services.AddScoped<IImageUploadRepository, ImageUploadCosmosRepository>();
+            services.AddScoped<IProcessThumbTrysCountRepository, ProcessThumbTrysCountCosmosRepository>();
 
             return services;
         }

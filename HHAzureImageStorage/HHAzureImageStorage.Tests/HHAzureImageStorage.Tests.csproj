@@ -30,6 +30,7 @@
   <ItemGroup>
     <None Update="test-config.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		<CopyToPublishDirectory>Never</CopyToPublishDirectory>
     </None>
   </ItemGroup>
 
