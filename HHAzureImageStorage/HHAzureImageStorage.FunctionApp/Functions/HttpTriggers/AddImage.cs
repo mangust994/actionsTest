@@ -1,4 +1,3 @@
-using Azure.Storage.Queues;
 using HHAzureImageStorage.BL.Extensions;
 using HHAzureImageStorage.BL.Models.DTOs;
 using HHAzureImageStorage.BL.Services;
@@ -11,9 +10,7 @@ using HHAzureImageStorage.IntegrationHHIH.Models;
 using HttpMultipartParser;
 using Microsoft.Azure.Functions.Worker;
 using Microsoft.Azure.Functions.Worker.Http;
-using Microsoft.Azure.WebJobs.Extensions.OpenApi.Core.Attributes;
 using Microsoft.Extensions.Logging;
-using Microsoft.OpenApi.Models;
 using System;
 using System.IO;
 using System.Linq;
@@ -44,8 +41,7 @@ namespace HHAzureImageStorage.FunctionApp.Functions.HttpTriggers
             _queueMessageService = queueMessageService;
         }
 
-        [Function("AddImage")]
-        [OpenApiOperation(operationId: "AddImage", tags: new[] { "image" })]
+        [Function("AddPhoto")]
         public async Task<HttpResponseData> Run([HttpTrigger(AuthorizationLevel.Function, "post", Route = null)]
             HttpRequestData req)
         {
@@ -122,7 +118,7 @@ namespace HHAzureImageStorage.FunctionApp.Functions.HttpTriggers
                     var file = formData.Files[0];
                     await file.Data.CopyToAsync(fileStream);
                     fileStream.Seek(0L, SeekOrigin.Begin);
-                    string contentType = file.ContentType;
+                    string contentType = FileHelper.GetMineType(originalFileName);
 
                     _logger.LogInformation($"AddImage: Finished file.Data.CopyToAsync(fileStream) for {imageId} imageId");
 
@@ -309,7 +305,7 @@ namespace HHAzureImageStorage.FunctionApp.Functions.HttpTriggers
                 FreeHiResDownload = freeHiResDownload,
                 AddIfAlreadyExists = addIfAlreadyExists,
                 OverwriteExistingImages = overwriteExistingImages,
-                OriginalFileName = formData.GetParameterValue("OriginalFileName")?.Trim(),
+                OriginalFileName = formData.GetParameterValue("OriginalFilename")?.Trim(),
                 EmailAddress = formData.GetParameterValue("EmailAddress")?.Trim(),
                 CellNumber = formData.GetParameterValue("CellNumber")?.Trim(),
                 AutoPostCode = formData.GetParameterValue("AutoPostCode")?.Trim(),
