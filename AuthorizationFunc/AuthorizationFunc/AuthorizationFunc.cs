@@ -19,12 +19,13 @@ using AuthorizationFunc.Parsers.Interfaces;
 using Microsoft.Extensions.Options;
 using AuthorizationFunc.Configs;
 using System.Text;
+using System.Security.Principal;
 
 namespace AuthorizationFunc
 {
     public class AuthorizationFunc
     {
-        private readonly IAuthorizationFuncClient authorizationFuncClient;
+       private readonly IAuthorizationFuncClient authorizationFuncClient;
 
         private readonly IRedisClient redisClient;
 
@@ -49,7 +50,7 @@ namespace AuthorizationFunc
             ILogger log)
         {
             log.LogInformation("C# authorization function processed a request.");
-
+            var securityKey = new SymmetricSecurityKey(Encoding.ASCII.GetBytes(tokenSettings.Key));
             string requestBody = await new StreamReader(req.Body).ReadToEndAsync();
             var authData = new AuthorizationData
             {
@@ -58,36 +59,73 @@ namespace AuthorizationFunc
                 EventUid = formDataParser.ParseValue("EventUid", requestBody)
             };
             string key = $"{authData.SecurityKey}|{authData.EventKey}|{authData.EventUid}";
+            log.LogInformation("A request is sent to get a token from the cache");
             var token = await redisClient.GetCahedToken(key);
             if (token == null)
             {
-                var statusCode = await authorizationFuncClient.MakeAuthorizationRequest(authData, log);
-                if (statusCode == System.Net.HttpStatusCode.OK)
-                {
-                    var now = DateTime.UtcNow;
-                    var jwt = new JwtSecurityToken(
-                            issuer: tokenSettings.Issuer,
-                            audience: tokenSettings.Audience,
-                            notBefore: now,
-                            expires: now.Add(TimeSpan.FromMinutes(tokenSettings.Lifetime)),
-                            signingCredentials: new SigningCredentials(new SymmetricSecurityKey(Encoding.ASCII.GetBytes(tokenSettings.Key)), SecurityAlgorithms.HmacSha256));
-                    var encodedJwt = new JwtSecurityTokenHandler().WriteToken(jwt);
-                    await redisClient.SetCahedToken(key, encodedJwt);
-                    return new OkObjectResult(encodedJwt);
-                }
-                else if (statusCode == System.Net.HttpStatusCode.Unauthorized)
-                {
-                    return new UnauthorizedResult();
-                }
-                else
-                {
-                    return new BadRequestResult();
-                }
+                log.LogInformation("No token found for such parameters");
+                return await this.ValidateDataAsync(authData, log, securityKey, key);
             }
             else
             {
+                log.LogInformation("Token was found, validation begins");
+                var tokenHandler = new JwtSecurityTokenHandler();
+                var validationParameters = new TokenValidationParameters() 
+                { 
+                    ValidateLifetime = true,
+                    ValidateAudience = false,
+                    ValidateIssuer = false,
+                    IssuerSigningKey = securityKey
+                };
+                SecurityToken validatedToken;
+                try
+                {
+                    IPrincipal principal = tokenHandler.ValidateToken(token, validationParameters, out validatedToken);
+                }
+                catch (Exception)
+                {
+                    log.LogInformation("Validation failed");
+                    return await this.ValidateDataAsync(authData, log, securityKey, key);
+                }
+                log.LogInformation("Validation successful, function exited with code 200");
                 return new OkObjectResult(token);
             }
+        }
+
+        private async Task<IActionResult> ValidateDataAsync(AuthorizationData authData, ILogger log, SymmetricSecurityKey securityKey, string key)
+        {
+            var statusCode = await authorizationFuncClient.MakeAuthorizationRequest(authData, log);
+            if (statusCode == System.Net.HttpStatusCode.OK)
+            {
+                log.LogInformation("Received code 200, start of token generation");
+                var encodedJwt = this.GenerateToken(securityKey);
+                await redisClient.SetCahedToken(key, encodedJwt);
+                log.LogInformation("Function exited with code 200");
+                return new OkObjectResult(encodedJwt);
+            }
+            else if (statusCode == System.Net.HttpStatusCode.Unauthorized)
+            {
+                log.LogInformation("Function exited with code 401");
+                return new UnauthorizedResult();
+            }
+            else
+            {
+                log.LogInformation("Function exited with code 400");
+                return new BadRequestResult();
+            }
+        }
+
+
+        private string GenerateToken(SymmetricSecurityKey securityKey)
+        {
+            var now = DateTime.UtcNow;
+            var jwt = new JwtSecurityToken(
+                    issuer: tokenSettings.Issuer,
+                    audience: tokenSettings.Audience,
+                    notBefore: now,
+                    expires: now.Add(TimeSpan.FromMinutes(tokenSettings.Lifetime)),
+                    signingCredentials: new SigningCredentials(securityKey, SecurityAlgorithms.HmacSha256));
+            return new JwtSecurityTokenHandler().WriteToken(jwt);
         }
     }
 }
