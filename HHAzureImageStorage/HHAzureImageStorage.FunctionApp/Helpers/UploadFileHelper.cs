@@ -81,7 +81,7 @@ namespace HHAzureImageStorage.FunctionApp.Helpers
 
         private bool IsFileNotValid(FilePart file)
         {
-            return !_uploadFileValidator.IsFileNotEmpty(file.Data);
+            return !_uploadFileValidator.IsValidContentType(file.ContentType) || !_uploadFileValidator.IsFileNotEmpty(file.Data);
         }
     }
 }

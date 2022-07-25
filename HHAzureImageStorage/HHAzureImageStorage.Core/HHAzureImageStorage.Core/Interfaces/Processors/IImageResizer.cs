@@ -5,9 +5,8 @@ namespace HHAzureImageStorage.Core.Interfaces.Processors
 {
     public interface IImageResizer
     {
-        ProcessUploadedImageResponse ProcessUploadedImageAndGetData(byte[] inputImageBytes, int shortestPixelSize, string contentType);
-        ImageResizeResponse Resize(byte[] sourceArray, int longestPixelSize, string contentType);
+        public ImageResizeResponse Resize(byte[] sourceArray, int longestPixelSize);
 
-        ImageResizeResponse ResizeWithWatermark(byte[] sourceArray, byte[] watermarkArray, int longestPixelSize, WaterMarkType watermarkType, string contentType);
+        public ImageResizeResponse ResizeWithWatermark(byte[] sourceArray, byte[] watermarkArray, int longestPixelSize, WaterMarkType watermarkType);
     }
 }

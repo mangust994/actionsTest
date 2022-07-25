@@ -29,6 +29,12 @@ namespace HHAzureImageStorage.Tests.UnitTests
         private readonly Mock<ILoggerFactory> _mockLoggerFactory;
         private readonly Mock<ILogger<ImageService>> _logerMock;
         private readonly Mock<BlobStorageSettings> _storageSettingsMock;
+        //private readonly Mock<IImageRepository> _imageRepositoryMock;
+        // private readonly Mock<IImageStorageRepository> _imageStorageRepositoryMock;
+        //private readonly Mock<IImageApplicationRetentionRepository> _imageApplicationRetentionRepositoryMock;
+        //private readonly Mock<IImageStorageSizeRepositoty> _imageStorageSizeRepositoryMock;
+        //private readonly Mock<IImageStorageAccessUrlRepository> _imageStorageAccesUrlRepositoryMock;
+        //private readonly Mock<IImageUploadRepository> _imageUploadRepositoryMock;
         private readonly Mock<IStorageHelper> _storageHelperMock;
         private readonly Mock<IStorageProcessor> _storageProcessorMock;
         private readonly Mock<IQueueMessageService> _queueMessageServiceMock;
@@ -41,10 +47,14 @@ namespace HHAzureImageStorage.Tests.UnitTests
         private readonly IImageStorageSizeRepositoty _imageStorageSizeRepository;
         private readonly IImageStorageAccessUrlRepository _imageStorageAccessUrlRepository;
         private readonly IImageUploadRepository _imageUploadRepository;
-        private readonly IProcessThumbTrysCountRepository _processThumbTrysCountRepositor;
+
+        //AddImageDto addImageDto;
 
         public ImageServiceTests()
         {
+            //ValidImageId = Guid.NewGuid();
+            //InvalidImageId = Guid.NewGuid();
+
             _logerMock = new Mock<ILogger<ImageService>>();
 
             _logerMock.Setup(x => x.Log(
@@ -62,6 +72,65 @@ namespace HHAzureImageStorage.Tests.UnitTests
                 .Returns(() => _logerMock.Object);
 
             _storageSettingsMock = new Mock<BlobStorageSettings>();
+            //_imageRepositoryMock = new Mock<IImageRepository>();
+
+            //var testImage = new Image()
+            //{
+            //    id = ValidImageId,
+            //    HasTransparentAlphaLayer = true,
+            //    ColorCorrectLevel = true,
+            //    AutoThumbnails = true,
+            //    MimeType = "",
+            //    OriginalImageName = "",
+            //    WatermarkImageId = "",
+            //    WatermarkMethod = "",
+            //    hhihPhotographerKey = 777,
+            //    hhihEventKey = 777,
+            //    WidthPixels = 1,
+            //    HeightPixels = 1,
+            //    SizeInBytes = 1
+
+            //};
+
+            //_imageRepositoryMock.Setup(x => x.GetByIdAsnc(ValidImageId))
+            //    .Returns(() => Task.FromResult(image));
+
+            //_imageRepositoryMock.Setup(x => x.GetByIdAsnc(InvalidImageId))
+            //    .Returns(() => null);
+
+            //_imageRepositoryMock.Setup(x => x.RemoveAsync(ValidImageId));
+
+            //_imageStorageRepositoryMock = new Mock<IImageStorageRepository>();
+
+            //_imageStorageRepositoryMock.Setup(x => x.GetByImageIdAndImageVariant(InvalidImageId,
+            //    It.IsAny<ImageVariant>()))
+            //    .Returns(() => null);
+
+            //var imageStorage = new ImageStorage()
+            //{
+
+            //};
+
+            //_imageStorageRepositoryMock.Setup(x => x.GetByImageIdAndImageVariant(ValidImageId,
+            //    It.IsAny<ImageVariant>()))
+            //    .Returns(() => imageStorage);
+
+            //_imageStorageRepositoryMock.Setup(x => x.RemoveAsync(ValidImageId,
+            //    It.IsAny<ImageVariant>()));
+
+            //_imageStorageAccesUrlRepositoryMock = new Mock<IImageStorageAccessUrlRepository>();
+
+            //_imageStorageAccesUrlRepositoryMock.Setup(x => x.RemoveAsync(ValidImageId,
+            //    It.IsAny<ImageVariant>()));
+
+            //_imageApplicationRetentionRepositoryMock = new Mock<IImageApplicationRetentionRepository>();
+
+            //_imageApplicationRetentionRepositoryMock.Setup(x => x.RemoveAsync(ValidImageId));          
+
+
+            //_imageStorageSizeRepositoryMock = new Mock<IImageStorageSizeRepositoty>();
+
+            //_imageUploadRepositoryMock = new Mock<IImageUploadRepository>();
             _storageHelperMock = new Mock<IStorageHelper>();
             _storageProcessorMock = new Mock<IStorageProcessor>();
             _queueMessageServiceMock = new Mock<IQueueMessageService>();
@@ -69,11 +138,11 @@ namespace HHAzureImageStorage.Tests.UnitTests
 
             var resizeResponse = RepositoryDtoTestData.GetTestImageResizeResponseInstance();
 
-            _imageResizerMock.Setup(x => x.Resize(It.IsAny<byte[]>(), It.IsAny<int>(), It.IsAny<string>()))
+            _imageResizerMock.Setup(x => x.Resize(It.IsAny<byte[]>(), It.IsAny<int>()))
                 .Returns(() => resizeResponse);
 
             _imageResizerMock.Setup(x => x.ResizeWithWatermark(It.IsAny<byte[]>(), It.IsAny<byte[]>(),
-                It.IsAny<int>(), It.IsAny<WaterMarkType>(), It.IsAny<string>()))
+                It.IsAny<int>(), It.IsAny<WaterMarkType>()))
                 .Returns(() => resizeResponse);
 
             var testImageByteArray = RepositoryDtoTestData.GetEmptyImageByteArray();
@@ -83,6 +152,9 @@ namespace HHAzureImageStorage.Tests.UnitTests
 
             _storageProcessorMock.Setup(x => x.UploadFileGetCreateAccessUrl(It.IsAny<string>(), It.IsAny<DateTime>()))
                 .Returns(() => TestAccessUrl);
+
+            //_storageProcessor
+            //.StorageFileGetReadAccessUrl(imageVariant, bloabName, expireDateTimeOffset);
 
             _storageProcessorMock.Setup(x => x.StorageFileGetReadAccessUrl(ImageVariant.Main, It.IsAny<string>(),
                 It.IsAny<DateTimeOffset>()))
@@ -98,13 +170,12 @@ namespace HHAzureImageStorage.Tests.UnitTests
             _imageApplicationRetentionRepository = new InMemoryImageApplicationRetentionRepository();
             _imageStorageSizeRepository = new InMemoryImageStorageSizeRepositoty();
             _imageUploadRepository = new InMemoryImageUploadRepository();
-            _processThumbTrysCountRepositor = new InMemoryProcessThumbTrysCountRepository();
 
             _sut = new ImageService(_mockLoggerFactory.Object, _storageSettingsMock.Object, _imageRepository,
                 _imageStorageRepository, _imageApplicationRetentionRepository,
                 _storageHelperMock.Object, _imageResizerMock.Object, _imageStorageSizeRepository,
                 _imageStorageAccessUrlRepository, _imageUploadRepository,
-                _storageProcessorMock.Object, _queueMessageServiceMock.Object, _processThumbTrysCountRepositor);
+                _storageProcessorMock.Object, _queueMessageServiceMock.Object);
         }
 
         [Fact]

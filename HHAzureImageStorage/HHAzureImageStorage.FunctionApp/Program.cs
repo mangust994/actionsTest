@@ -1,16 +1,19 @@
-using HHAzureImageStorage.BL.Services;
-using HHAzureImageStorage.BL.Utilities;
-using HHAzureImageStorage.BL.Validators;
-using HHAzureImageStorage.BlobStorageProcessor;
-using HHAzureImageStorage.Core.Interfaces.Processors;
-using HHAzureImageStorage.CosmosRepository;
-using HHAzureImageStorage.FunctionApp.Helpers;
-using HHAzureImageStorage.IntegrationHHIH;
-using Microsoft.Azure.Functions.Worker.Extensions.OpenApi.Extensions;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using System.Threading.Tasks;
+using HHAzureImageStorage.CosmosRepository;
+using HHAzureImageStorage.BlobStorageProcessor;
+using Microsoft.Extensions.Configuration;
+using HHAzureImageStorage.BL.Utilities;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Azure.Functions.Worker.Extensions.OpenApi.Extensions;
+using HHAzureImageStorage.BL.Validators;
+using HHAzureImageStorage.IntegrationHHIH;
+using Microsoft.Extensions.Azure;
+using Azure.Storage.Queues;
+using System;
+using HHAzureImageStorage.FunctionApp.Helpers;
+using HHAzureImageStorage.Core.Interfaces.Processors;
+using HHAzureImageStorage.BL.Services;
 
 namespace HHAzureImageStorage.FunctionApp
 {
@@ -43,8 +46,7 @@ namespace HHAzureImageStorage.FunctionApp
 
                     services.AddAzureAppConfiguration();
 
-                    //services.AddSingleton<IImageResizer, ImageResizerMagickImage>();//IImageResizer
-                    services.AddSingleton<IImageResizer, ImageSharpResizer>();
+                    services.AddSingleton<IImageResizer, ImageResizerMagickImage>();
                     services.AddSingleton<IUploadFileValidator, UploadFileValidator>();
                     services.AddSingleton<IUploadFileHelper, UploadFileHelper>();
                     services.AddSingleton<IHttpHelper, HttpHelper>();

@@ -49,19 +49,6 @@ namespace HHAzureImageStorage.BL.Utilities
             return $"{prefix}_{imageId}{extension}";
         }
 
-        public static string GetMineType(string fileName)
-        {
-            switch (GetExtension(fileName))
-            {
-                case "jpg":
-                    return "image/jpeg";
-                case "png":
-                    return "image/png";
-                default:
-                    return "image/jpeg";
-            }
-        }
-
         public static IDictionary<string, string> CreateMetaData(string imageId, string contentType)
         {
             return new Dictionary<string, string>()
@@ -75,11 +62,6 @@ namespace HHAzureImageStorage.BL.Utilities
                       contentType
                     }
                   };
-        }
-
-        private static string GetExtension(string fileName)
-        {
-            return Path.GetExtension(fileName).Replace(".", string.Empty);
         }
     }
 }

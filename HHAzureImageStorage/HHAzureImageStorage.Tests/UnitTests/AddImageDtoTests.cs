@@ -69,7 +69,7 @@ namespace HHAzureImageStorage.Tests.UnitTests
             Assert.NotNull(addImageDto.Content);
             Assert.Equal(1, addImageDto.HeightPixels);
             Assert.Equal(1, addImageDto.WidthPixels);
-            Assert.Equal(615, addImageDto.SizeInBytes);
+            Assert.Equal(84, addImageDto.SizeInBytes);
             Assert.False(addImageDto.HasTransparentAlphaLayer);
         }
 

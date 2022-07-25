@@ -9,8 +9,6 @@ namespace HHAzureImageStorage.Domain.Entities
     [JsonObject(NamingStrategyType = typeof(CamelCaseNamingStrategy))]
     public class ImageStorageSize : IEntity
     {
-        public int sequence { get; set; }
-
         public int ImageStorageSizeId { get; set; }
 
         public ImageVariant imageVariantId { get; set; }
