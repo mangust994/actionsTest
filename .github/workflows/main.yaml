@@ -12,12 +12,12 @@ env:
  DOTNET_VERSION: '6.0' # set this to the dotnet version to use
  SLOT_NAME: 'Production'
  WORKING_DIRECTORY: 'HHAzureImageStorage'
- BUILD_ENVIRONMENT: 'Debug'
+ BUILD_ENVIRONMENT: 'Release'
 
 
 jobs:
   build-and-deploy:
-    runs-on: windows-latest
+    runs-on: ubuntu-latest
     steps:
       - name: 'Checkout GitHub Action'
         uses: actions/checkout@v2
