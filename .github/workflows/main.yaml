@@ -12,7 +12,7 @@ env:
  DOTNET_VERSION: '6.0' # set this to the dotnet version to use
  SLOT_NAME: 'Production'
  WORKING_DIRECTORY: 'HHAzureImageStorage'
- BUILD_ENVIRONMENT: 'Release'
+ BUILD_ENVIRONMENT: 'Debug'
 
 
 jobs:
